@@ -9,7 +9,7 @@ export default function Footer() {
           <img
             alt="Jaguar Golf Society Logo"
             className="h-14 w-auto object-contain bg-white rounded-full p-1"
-            src="/logo.png"
+            src="/images/logo-2026.png"
           />
           <div className="flex flex-col items-start">
             <span className="text-xl font-serif font-bold tracking-tight mb-1">
@@ -32,7 +32,7 @@ export default function Footer() {
           </Link>
         </div>
         <div className="flex gap-4">
-           {/* Social Icons would go here */}
+          {/* Social Icons would go here */}
         </div>
       </div>
     </footer>
