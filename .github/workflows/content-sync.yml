@@ -47,6 +47,16 @@ jobs:
           git commit -m "Auto-Sync: Updated content from Google Sheets"
           git push
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install and Build
+        run: |
+          npm ci
+          npm run build
+
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/pages-action@v1
         with:
