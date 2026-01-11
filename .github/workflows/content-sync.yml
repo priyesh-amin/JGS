@@ -46,3 +46,14 @@ jobs:
           git add .
           git commit -m "Auto-Sync: Updated content from Google Sheets"
           git push
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: jaguargolfsociety
+          directory: dist
+          gitHubToken: ${{ secrets.GH_PAT }}
+          branch: main
+          wranglerVersion: '3'
