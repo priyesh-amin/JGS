@@ -26,7 +26,8 @@ def fetch_csv(gid):
         return pd.read_csv(io.StringIO(response.text))
     except Exception as e:
         print(f"Error fetching GID {gid}: {e}")
-        return None
+        import sys
+        sys.exit(1)
 
 def process_fixtures(df):
     """Transforms Fixtures CSV DataFrame to JSON structure."""
