@@ -3,7 +3,10 @@ import requests
 import pandas as pd
 import json
 import io
+import io
 import os
+from datetime import datetime
+import pytz # Need to make sure pytz is available or use standard timezone
 
 # --- Configuration ---
 SPREADSHEET_ID = '1CT8BuIQOhymev6m7JTOcSfOGFJbSi_UjdNCH4Jkqbh0'
@@ -110,6 +113,18 @@ def main():
         with open(out_path, 'w', encoding='utf-8') as f:
             json.dump(lb_json, f, indent=4)
         print(f"Updated: {out_path}")
+
+        print(f"Updated: {out_path}")
+
+    # 3. Metadata (Timestamp)
+    metadata = {
+        "lastUpdated": datetime.now().isoformat(),
+        "syncStatus": "Success"
+    }
+    meta_path = os.path.join(OUTPUT_DIR, 'metadata.json')
+    with open(meta_path, 'w', encoding='utf-8') as f:
+        json.dump(metadata, f, indent=4)
+    print(f"Updated: {meta_path}")
 
     print("--- Sync Complete ---")
 

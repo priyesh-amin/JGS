@@ -1,16 +1,43 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import MainLayout from '../layouts/MainLayout';
 import { useAuth } from '../contexts/AuthContext';
+import metadata from '../data/metadata.json'; // Import build-time (or locally synced) metadata
 
 export default function Admin() {
     const { isAuthenticated } = useAuth();
     const [syncStatus, setSyncStatus] = useState('idle'); // idle, loading, success, error
     const [message, setMessage] = useState('');
     const [logs, setLogs] = useState([]);
+    const [timeSinceUpdate, setTimeSinceUpdate] = useState('');
 
     const addLog = (text) => {
         setLogs(prev => [`[${new Date().toLocaleTimeString()}] ${text}`, ...prev]);
     };
+
+    // calculate time ago
+    useEffect(() => {
+        if (metadata && metadata.lastUpdated) {
+            const updateTime = () => {
+                const now = new Date();
+                const past = new Date(metadata.lastUpdated);
+                const diffMs = now - past;
+                const diffMins = Math.floor(diffMs / 60000);
+
+                if (diffMins < 1) setTimeSinceUpdate('Just now');
+                else if (diffMins === 1) setTimeSinceUpdate('1 minute ago');
+                else if (diffMins < 60) setTimeSinceUpdate(`${diffMins} minutes ago`);
+                else {
+                    const diffHours = Math.floor(diffMins / 60);
+                    setTimeSinceUpdate(`${diffHours} hours ago`);
+                }
+            };
+
+            updateTime();
+            const interval = setInterval(updateTime, 60000); // Update every minute
+            return () => clearInterval(interval);
+        }
+    }, []);
+
 
     const handleSync = async () => {
         setSyncStatus('loading');
@@ -72,9 +99,16 @@ export default function Admin() {
                                 <p className="text-white/60 text-xs uppercase tracking-widest">Master Sheet → Live Site</p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <span className={`h-3 w-3 rounded-full ${syncStatus === 'loading' ? 'bg-yellow-400 animate-pulse' : 'bg-green-500'}`}></span>
-                            <span className="text-white/80 text-sm font-medium">System Ready</span>
+                        <div className="flex flex-col items-end gap-1">
+                            <div className="flex items-center gap-2">
+                                <span className={`h-3 w-3 rounded-full ${syncStatus === 'loading' ? 'bg-yellow-400 animate-pulse' : 'bg-green-500'}`}></span>
+                                <span className="text-white/80 text-sm font-medium">System Ready</span>
+                            </div>
+                            {timeSinceUpdate && (
+                                <div className="text-white/60 text-[10px] uppercase font-mono tracking-wider">
+                                    Last Updated: <span className="text-trophy-gold">{timeSinceUpdate}</span>
+                                </div>
+                            )}
                         </div>
                     </div>
 
