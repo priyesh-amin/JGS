@@ -7,18 +7,36 @@ import CharityEvents from './pages/CharityEvents';
 import Donate from './pages/Donate';
 import Charities from './pages/Charities';
 import Sponsorship from './pages/Sponsorship';
+import Leaderboards from './pages/Leaderboards';
+import Gallery from './pages/Gallery';
+
+import { AuthProvider } from './contexts/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import Login from './pages/Login';
 
 function App() {
   return (
     <Router>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/events" element={<CharityEvents />} />
-        <Route path="/donate" element={<Donate />} />
-        <Route path="/charities" element={<Charities />} />
-        <Route path="/sponsorship" element={<Sponsorship />} />
-        <Route path="/about" element={<About />} />
-      </Routes>
+      <AuthProvider>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route
+            path="/events"
+            element={
+              <ProtectedRoute>
+                <CharityEvents />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="/donate" element={<Donate />} />
+          <Route path="/charities" element={<Charities />} />
+          <Route path="/sponsorship" element={<Sponsorship />} />
+          <Route path="/gallery" element={<Gallery />} />
+          <Route path="/leaderboards" element={<Leaderboards />} />
+          <Route path="/about" element={<About />} />
+        </Routes>
+      </AuthProvider>
     </Router>
   );
 }

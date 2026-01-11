@@ -8,8 +8,8 @@ export default function Footer() {
         <div className="flex items-center gap-4">
           <img
             alt="Jaguar Golf Society Logo"
-            className="h-14 w-auto object-contain bg-white rounded-full p-1"
-            src="/images/logo-2026.png"
+            className="h-16 w-auto object-contain"
+            src="/images/logo-hero.png"
           />
           <div className="flex flex-col items-start">
             <span className="text-xl font-serif font-bold tracking-tight mb-1">
@@ -21,6 +21,7 @@ export default function Footer() {
           </div>
         </div>
         <div className="flex gap-8 text-xs font-bold uppercase tracking-widest text-trophy-gold/80">
+          {/* TODO: Update links when requirements are defined */}
           <Link to="#" className="hover:text-white transition-colors">
             Constitution
           </Link>

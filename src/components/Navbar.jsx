@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
+  const { isAuthenticated, logout } = useAuth();
 
   const getLinkClass = (path) => {
     const isActive = location.pathname === path;
@@ -32,7 +34,7 @@ export default function Navbar() {
               <img
                 alt="Jaguar Golf Society Logo"
                 className="h-16 w-auto object-contain"
-                src="/images/logo-2026.png"
+                src="/images/logo-hero.png"
               />
             </Link>
             <div className="flex flex-col">
@@ -48,14 +50,32 @@ export default function Navbar() {
             <Link to="/" className={getLinkClass('/')}>
               Home
             </Link>
-            <Link to="/events" className={getLinkClass('/events')}>
-              Fixtures
-            </Link>
-            <Link to="#" className={getLinkClass('/leaderboards')}>
+
+            <div className="flex flex-col items-center">
+              <Link to="/events" className={getLinkClass('/events')}>
+                Fixtures
+              </Link>
+              {isAuthenticated && (
+                <button
+                  onClick={logout}
+                  className="text-[10px] text-charity-crimson font-black uppercase tracking-wider hover:text-red-400 mt-1"
+                >
+                  Logout
+                </button>
+              )}
+            </div>
+
+            <Link to="/leaderboards" className={getLinkClass('/leaderboards')}>
               Leaderboards
             </Link>
             <Link to="/charities" className={getLinkClass('/charities')}>
               Charity
+            </Link>
+            <Link to="/sponsorship" className={getLinkClass('/sponsorship')}>
+              Sponsors
+            </Link>
+            <Link to="/gallery" className={getLinkClass('/gallery')}>
+              Gallery
             </Link>
             <Link to="/about" className={getLinkClass('/about')}>
               About
@@ -82,7 +102,18 @@ export default function Navbar() {
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
             <Link to="/" className={getMobileLinkClass('/')} onClick={() => setIsOpen(false)}>Home</Link>
             <Link to="/events" className={getMobileLinkClass('/events')} onClick={() => setIsOpen(false)}>Fixtures</Link>
+            {isAuthenticated && (
+              <button
+                onClick={() => { logout(); setIsOpen(false); }}
+                className="block w-full text-left px-3 py-2 text-base font-bold text-charity-crimson hover:bg-black/10 uppercase tracking-wider"
+              >
+                Logout
+              </button>
+            )}
             <Link to="/charities" className={getMobileLinkClass('/charities')} onClick={() => setIsOpen(false)}>Charity</Link>
+            <Link to="/sponsorship" className={getMobileLinkClass('/sponsorship')} onClick={() => setIsOpen(false)}>Sponsors</Link>
+            <Link to="/gallery" className={getMobileLinkClass('/gallery')} onClick={() => setIsOpen(false)}>Gallery</Link>
+            <Link to="/about" className={getMobileLinkClass('/about')} onClick={() => setIsOpen(false)}>About</Link>
             <Link to="/donate" className={getMobileLinkClass('/donate')} onClick={() => setIsOpen(false)}>Donate</Link>
           </div>
         </div>

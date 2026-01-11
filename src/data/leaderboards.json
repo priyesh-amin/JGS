@@ -1,0 +1,230 @@
+{
+    "poy": [
+        {
+            "year": "2025",
+            "winner": "Gummy Dulku"
+        },
+        {
+            "year": "2024",
+            "winner": "Atul Patel"
+        },
+        {
+            "year": "2023",
+            "winner": "Shailendra Magdum"
+        },
+        {
+            "year": "2022",
+            "winner": "Suresh Solanki"
+        },
+        {
+            "year": "2021",
+            "winner": "Sundip Patel"
+        },
+        {
+            "year": "2020",
+            "winner": "Hiten Ravalia"
+        },
+        {
+            "year": "2019",
+            "winner": "Vijay Patel"
+        },
+        {
+            "year": "2018",
+            "winner": "Hiten Ravalia"
+        },
+        {
+            "year": "2017",
+            "winner": "Bhavesh Popat"
+        },
+        {
+            "year": "2016",
+            "winner": "Kirit Patel"
+        },
+        {
+            "year": "2015",
+            "winner": "Kirit Patel"
+        },
+        {
+            "year": "2014",
+            "winner": "Jay Patel"
+        },
+        {
+            "year": "2013",
+            "winner": "Kishore Vara"
+        },
+        {
+            "year": "2012",
+            "winner": "Chris Casey"
+        },
+        {
+            "year": "2011",
+            "winner": "Atul Patel"
+        }
+    ],
+    "singles": [
+        {
+            "year": "2025",
+            "winner": "Atul Gandhi"
+        },
+        {
+            "year": "2024",
+            "winner": "Vijay Patel"
+        },
+        {
+            "year": "2023",
+            "winner": "Kishor Vara"
+        },
+        {
+            "year": "2022",
+            "winner": "Hasmukh Ladva"
+        },
+        {
+            "year": "2021",
+            "winner": "Kirit Patel"
+        },
+        {
+            "year": "2020",
+            "winner": "Vikesh Khagram"
+        },
+        {
+            "year": "2019",
+            "winner": "Sundip Patel"
+        },
+        {
+            "year": "2018",
+            "winner": "Kanji Mama"
+        },
+        {
+            "year": "2017",
+            "winner": "Mansukh Popat"
+        },
+        {
+            "year": "2016",
+            "winner": "Sundip Ravalia"
+        },
+        {
+            "year": "2015",
+            "winner": "Dharam Patel"
+        },
+        {
+            "year": "2014",
+            "winner": "Chetan Patel"
+        },
+        {
+            "year": "2013",
+            "winner": "Gummy Dulku"
+        }
+    ],
+    "radha": [
+        {
+            "year": "2025",
+            "winner": "Team Rambo",
+            "score": "The Vale, Cardiff 23-17"
+        },
+        {
+            "year": "2024",
+            "winner": "Kishor Vara & Team"
+        },
+        {
+            "year": "2023",
+            "winner": "Suresh Solanki",
+            "score": "21-15"
+        },
+        {
+            "year": "2022",
+            "winner": "Sundip Patel",
+            "score": "18-18, playoff"
+        },
+        {
+            "year": "2021",
+            "winner": "Vikesh Khagram"
+        },
+        {
+            "year": "2020",
+            "winner": "Sundip Patel"
+        },
+        {
+            "year": "2019",
+            "winner": "Hiten Ravalia"
+        },
+        {
+            "year": "2018",
+            "winner": "Bhavesh Popat"
+        },
+        {
+            "year": "2017",
+            "winner": "Kirit Patel"
+        },
+        {
+            "year": "2016",
+            "winner": "Dharam Patel",
+            "score": "27-5"
+        },
+        {
+            "year": "2015",
+            "winner": "Chetan Patel"
+        },
+        {
+            "year": "2014",
+            "winner": "Gummy Dulku"
+        }
+    ],
+    "doubles": [
+        {
+            "year": "2025",
+            "winner": "Nilesh Hindocha & Minesh R Patel"
+        },
+        {
+            "year": "2024",
+            "winner": "Randeep Kalyan/ Lakhdeep Kalyan"
+        },
+        {
+            "year": "2023",
+            "winner": "Chetan Patel & Raj Ramchandani"
+        },
+        {
+            "year": "2023",
+            "winner": "Raj Ramchandani & Chetan Patel"
+        },
+        {
+            "year": "2022",
+            "winner": "Ash Vara/Brij Ghedia"
+        },
+        {
+            "year": "2021",
+            "winner": "Rajni Vara & Ashvin Parmar"
+        },
+        {
+            "year": "2020",
+            "winner": "Co Vid"
+        },
+        {
+            "year": "2019",
+            "winner": "Atul Gandhi + Vijay Patel"
+        },
+        {
+            "year": "2018",
+            "winner": "Sundip Patel + Raju Vara"
+        },
+        {
+            "year": "2017",
+            "winner": "Atul Gandhi + Vijay Patel"
+        },
+        {
+            "year": "2016",
+            "winner": "Gummy + Hiten"
+        },
+        {
+            "year": "2015",
+            "winner": "Raju Vara + Jaikishen Patel"
+        },
+        {
+            "year": "2014",
+            "winner": "Sundip Ravalia + Jay Patel"
+        },
+        {
+            "year": "2013",
+            "winner": "Kishore Vara + Paritosh Patel"
+        }
+    ]
+}

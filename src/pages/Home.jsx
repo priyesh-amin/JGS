@@ -20,15 +20,15 @@ export default function Home() {
           <div className="absolute inset-0 bg-[url('/images/hero-bg-2026.png')] bg-cover bg-center transition-transform duration-700 group-hover:scale-105"></div>
           <div className="absolute inset-0 bg-gradient-to-t from-midnight-navy via-midnight-navy/40 to-black/30"></div>
 
-          <div className="relative z-10 h-full flex flex-col justify-end items-center text-center p-8 md:p-12 pb-7">
+          <div className="relative z-10 h-full flex flex-col justify-end items-center text-center p-8 md:p-12 pb-2">
             <p className="text-white/90 text-lg md:text-xl font-light tracking-wide uppercase mb-7 drop-shadow-md">
               Est. 2011 &bull; Community &bull; Charity &bull; Competition
             </p>
 
             <img
-              src="/images/logo-2026.png"
+              src="/images/logo-hero.png"
               alt="Jaguar Golf Society"
-              className="w-48 md:w-64 mb-7 drop-shadow-2xl hover:scale-105 transition-transform duration-500"
+              className="w-48 md:w-64 mb-2 drop-shadow-2xl hover:scale-105 transition-transform duration-500"
             />
 
             <div className="flex justify-center">
