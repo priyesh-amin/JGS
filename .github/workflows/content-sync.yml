@@ -1,0 +1,48 @@
+name: Sync Content & Deploy
+
+on:
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+  repository_dispatch: # Allows trigger via API (from our Admin Function)
+    types: [sync_content]
+
+jobs:
+  sync-and-update:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GH_PAT }} # Important for pushing back to protected branches
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas requests
+
+      - name: Run Sync Script
+        run: |
+            python scripts/sync_google_sheets.py
+        env:
+           # If the script needs secrets, inject them here.
+           # Currently script uses public links so might be fine.
+           PYTHONUNBUFFERED: 1
+
+      - name: Check for Changes
+        id: git-check
+        run: |
+          git diff --exit-code || echo "::set-output name=changes::true"
+
+      - name: Commit & Push Changes
+        if: steps.git-check.outputs.changes == 'true'
+        run: |
+          git config --global user.name 'JGS Bot'
+          git config --global user.email 'bot@jaguargolfsociety.com'
+          git add .
+          git commit -m "Auto-Sync: Updated content from Google Sheets"
+          git push

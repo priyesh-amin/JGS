@@ -1,7 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Footer() {
+  const { isAdmin } = useAuth();
+
   return (
     <footer className="bg-jaguar-green text-white border-t border-trophy-gold py-12 mt-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-6">
@@ -31,11 +34,16 @@ export default function Footer() {
           <Link to="#" className="hover:text-white transition-colors">
             Contact Us
           </Link>
-        </div>
-        <div className="flex gap-4">
-          {/* Social Icons would go here */}
+          {isAdmin && (
+            <Link to="/admin" className="hover:text-white transition-colors text-charity-crimson">
+              Admin
+            </Link>
+          )}
         </div>
       </div>
-    </footer>
+      <div className="flex gap-4">
+        {/* Social Icons would go here */}
+      </div>
+    </footer >
   );
 }

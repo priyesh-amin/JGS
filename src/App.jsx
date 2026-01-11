@@ -13,6 +13,7 @@ import Gallery from './pages/Gallery';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
+import Admin from './pages/Admin';
 
 function App() {
   return (
@@ -21,6 +22,14 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <Admin />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/events"
             element={

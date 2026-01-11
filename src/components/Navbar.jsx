@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, isAdmin, logout } = useAuth();
 
   const getLinkClass = (path) => {
     const isActive = location.pathname === path;
@@ -56,12 +56,19 @@ export default function Navbar() {
                 Fixtures
               </Link>
               {isAuthenticated && (
-                <button
-                  onClick={logout}
-                  className="text-[10px] text-charity-crimson font-black uppercase tracking-wider hover:text-red-400 mt-1"
-                >
-                  Logout
-                </button>
+                <>
+                  {isAdmin && (
+                    <Link to="/admin" className="text-[10px] text-trophy-gold font-bold uppercase tracking-wider hover:text-white mt-1 mb-0.5">
+                      Admin
+                    </Link>
+                  )}
+                  <button
+                    onClick={logout}
+                    className="text-[10px] text-charity-crimson font-black uppercase tracking-wider hover:text-red-400"
+                  >
+                    Logout
+                  </button>
+                </>
               )}
             </div>
 
@@ -103,12 +110,15 @@ export default function Navbar() {
             <Link to="/" className={getMobileLinkClass('/')} onClick={() => setIsOpen(false)}>Home</Link>
             <Link to="/events" className={getMobileLinkClass('/events')} onClick={() => setIsOpen(false)}>Fixtures</Link>
             {isAuthenticated && (
-              <button
-                onClick={() => { logout(); setIsOpen(false); }}
-                className="block w-full text-left px-3 py-2 text-base font-bold text-charity-crimson hover:bg-black/10 uppercase tracking-wider"
-              >
-                Logout
-              </button>
+              <>
+                {isAdmin && <Link to="/admin" className={getMobileLinkClass('/admin')} onClick={() => setIsOpen(false)}>Admin Dashboard</Link>}
+                <button
+                  onClick={() => { logout(); setIsOpen(false); }}
+                  className="block w-full text-left px-3 py-2 text-base font-bold text-charity-crimson hover:bg-black/10 uppercase tracking-wider"
+                >
+                  Logout
+                </button>
+              </>
             )}
             <Link to="/charities" className={getMobileLinkClass('/charities')} onClick={() => setIsOpen(false)}>Charity</Link>
             <Link to="/sponsorship" className={getMobileLinkClass('/sponsorship')} onClick={() => setIsOpen(false)}>Sponsors</Link>
