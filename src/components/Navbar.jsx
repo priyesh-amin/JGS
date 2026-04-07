@@ -72,6 +72,9 @@ export default function Navbar() {
               )}
             </div>
 
+            <Link to="/members" className={getLinkClass('/members')}>
+              Members
+            </Link>
             <Link to="/leaderboards" className={getLinkClass('/leaderboards')}>
               Leaderboards
             </Link>
@@ -109,6 +112,7 @@ export default function Navbar() {
           <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
             <Link to="/" className={getMobileLinkClass('/')} onClick={() => setIsOpen(false)}>Home</Link>
             <Link to="/events" className={getMobileLinkClass('/events')} onClick={() => setIsOpen(false)}>Fixtures</Link>
+            <Link to="/members" className={getMobileLinkClass('/members')} onClick={() => setIsOpen(false)}>Members</Link>
             {isAuthenticated && (
               <>
                 {isAdmin && <Link to="/admin" className={getMobileLinkClass('/admin')} onClick={() => setIsOpen(false)}>Admin Dashboard</Link>}
