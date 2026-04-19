@@ -34,7 +34,7 @@ export default function Navbar() {
               <img
                 alt="Jaguar Golf Society Logo"
                 className="h-16 w-auto object-contain"
-                src="/images/logo-hero.png"
+                src="/images/Jaguar%20GS%20Logo%20.png"
               />
             </Link>
             <div className="flex flex-col">

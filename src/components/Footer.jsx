@@ -12,7 +12,7 @@ export default function Footer() {
           <img
             alt="Jaguar Golf Society Logo"
             className="h-16 w-auto object-contain"
-            src="/images/logo-hero.png"
+            src="/images/Jaguar%20GS%20Logo%20.png"
           />
           <div className="flex flex-col items-start">
             <span className="text-xl font-serif font-bold tracking-tight mb-1">

@@ -26,7 +26,7 @@ export default function Home() {
             </p>
 
             <img
-              src="/images/logo-hero.png"
+              src="/images/Jaguar%20GS%20Logo%20.png"
               alt="Jaguar Golf Society"
               className="w-48 md:w-64 mb-2 drop-shadow-2xl hover:scale-105 transition-transform duration-500"
             />
