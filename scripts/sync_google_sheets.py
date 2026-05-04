@@ -16,6 +16,20 @@ GIDS = {
 }
 OUTPUT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src', 'data'))
 
+# The public fixtures sheet does not currently include registration links, but
+# the portal needs these to render the "Enter Now" buttons.
+FORM_URLS = {
+    'may-monthly-2026': 'https://docs.google.com/forms/d/1KUuWPHW_aTasYS4Fj3uHHGRgL7kjG168_cTW5ofCSBI/viewform',
+    'may-midweek-2026': 'https://docs.google.com/forms/d/12rBNI6CFXSLItG-7we6gRRgIooR8AShsm_xh9FJ25jw/viewform',
+    'june-monthly-2026': 'https://docs.google.com/forms/d/1XFKzIof_w13s69ZI6Dk6sA2NsqHHHS9Vz8mC7fnjHcw/viewform',
+    'july-monthly-2026': 'https://docs.google.com/forms/d/10EnjX9iLefGTOnSBdjAAMcVd1HjaHQ9XVDbqGHzTmzA/viewform',
+    'july-midweek-2026': 'https://docs.google.com/forms/d/1GHP659_VWtibYyrgG3TBihveFBR52O9Y7qozxzjxBBo/viewform',
+    'aug-monthly-2026': 'https://docs.google.com/forms/d/1Xt1Tzt09fTi13IJ5_7ah95rxCv-D8XOKf7H95NFB4is/viewform',
+    'aug-midweek-2026': 'https://docs.google.com/forms/d/1k8PbeGiu2-PHuVWafinS_p8dyS4FAVuS3KvHAd_HQvA/viewform',
+    'sept-monthly-2026': 'https://docs.google.com/forms/d/1QU1w7XJhe0Xv1b4KVuEAMjED0zHh0CjZsnfmjAu1LM0/viewform',
+    'season-finale-2026': 'https://docs.google.com/forms/d/1WDNAvSwMmWfGe38oG3Ymprh-PKrdlagOktA7UMejIao/viewform',
+}
+
 # --- Functions ---
 
 def fetch_csv(gid):
@@ -25,6 +39,7 @@ def fetch_csv(gid):
     try:
         response = requests.get(url)
         response.raise_for_status()
+        response.encoding = 'utf-8'
         return pd.read_csv(io.StringIO(response.text))
     except Exception as e:
         print(f"Error fetching GID {gid}: {e}")
@@ -40,8 +55,10 @@ def process_fixtures(df):
         # Handle boolean fields
         is_charity = str(row.get('IsCharityDay', 'FALSE')).upper() == 'TRUE'
         
+        event_id = str(row['ID'])
+
         item = {
-            "id": str(row['ID']),
+            "id": event_id,
             "date": str(row['Date']),
             "event": str(row['Event']),
             "venue": str(row['Venue']),
@@ -58,6 +75,12 @@ def process_fixtures(df):
         if pd.notna(row.get('Capacity')): item['capacity'] = int(row['Capacity']) if pd.notna(row['Capacity']) and str(row['Capacity']).isdigit() else str(row['Capacity'])
         if pd.notna(row.get('Package')): item['package'] = str(row['Package'])
         if pd.notna(row.get('Schedule')): item['schedule'] = str(row['Schedule'])
+
+        sheet_form_url = row.get('FormUrl', row.get('FormURL', row.get('Form URL')))
+        if pd.notna(sheet_form_url) and str(sheet_form_url).strip():
+            item['formUrl'] = str(sheet_form_url).strip()
+        elif event_id in FORM_URLS:
+            item['formUrl'] = FORM_URLS[event_id]
         
         fixtures.append(item)
     return fixtures
