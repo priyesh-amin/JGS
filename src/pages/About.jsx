@@ -175,8 +175,11 @@ export default function About() {
                             {/* Captain */}
                             <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center text-center group hover:border-trophy-gold transition-colors duration-300">
                                 <div className="size-24 rounded-full bg-gray-100 mb-6 overflow-hidden relative">
-                                    <div className="absolute inset-0 bg-midnight-navy/10 group-hover:bg-transparent transition-colors"></div>
-                                    <span className="material-symbols-outlined text-4xl text-gray-400 absolute inset-0 flex items-center justify-center">person</span>
+                                    <img
+                                        src="/images/shailendra-magdum.jpeg"
+                                        alt="Shailendra Magdum"
+                                        className="h-full w-full object-cover object-top"
+                                    />
                                 </div>
                                 <h3 className="text-xl font-bold text-midnight-navy">Shailendra Magdum</h3>
                                 <p className="text-trophy-gold font-bold text-sm uppercase tracking-wider mt-1">Captain & Handicap Sec</p>
@@ -185,8 +188,11 @@ export default function About() {
                             {/* Chairman */}
                             <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center text-center group hover:border-trophy-gold transition-colors duration-300">
                                 <div className="size-24 rounded-full bg-gray-100 mb-6 overflow-hidden relative">
-                                    <div className="absolute inset-0 bg-midnight-navy/10 group-hover:bg-transparent transition-colors"></div>
-                                    <span className="material-symbols-outlined text-4xl text-gray-400 absolute inset-0 flex items-center justify-center">person</span>
+                                    <img
+                                        src="/images/rakesh-patel.jpeg"
+                                        alt="Rakesh Patel"
+                                        className="h-full w-full object-cover object-top"
+                                    />
                                 </div>
                                 <h3 className="text-xl font-bold text-midnight-navy">Rakesh Patel</h3>
                                 <p className="text-trophy-gold font-bold text-sm uppercase tracking-wider mt-1">Chairman</p>
@@ -195,8 +201,11 @@ export default function About() {
                             {/* Treasurer */}
                             <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center text-center group hover:border-trophy-gold transition-colors duration-300">
                                 <div className="size-24 rounded-full bg-gray-100 mb-6 overflow-hidden relative">
-                                    <div className="absolute inset-0 bg-midnight-navy/10 group-hover:bg-transparent transition-colors"></div>
-                                    <span className="material-symbols-outlined text-4xl text-gray-400 absolute inset-0 flex items-center justify-center">person</span>
+                                    <img
+                                        src="/images/chetan-patel.jpg"
+                                        alt="Chetan Patel"
+                                        className="h-full w-full object-cover object-top"
+                                    />
                                 </div>
                                 <h3 className="text-xl font-bold text-midnight-navy">Chetan Patel</h3>
                                 <p className="text-trophy-gold font-bold text-sm uppercase tracking-wider mt-1">Treasurer</p>

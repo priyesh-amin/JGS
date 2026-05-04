@@ -4,14 +4,17 @@ const committeeMembers = [
     {
         name: 'Shailendra Magdum',
         role: 'Captain & Handicap Sec',
+        image: '/images/shailendra-magdum.jpeg',
     },
     {
         name: 'Rakesh Patel',
         role: 'Chairman',
+        image: '/images/rakesh-patel.jpeg',
     },
     {
         name: 'Chetan Patel',
         role: 'Treasurer',
+        image: '/images/chetan-patel.jpg',
     },
     {
         name: 'Bobby Verma',
@@ -39,8 +42,18 @@ export default function Committee() {
                     {committeeMembers.map((member, index) => (
                         <div key={index} className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center text-center group hover:border-trophy-gold transition-colors duration-300">
                             <div className="size-24 rounded-full bg-gray-100 mb-6 overflow-hidden relative">
-                                <div className="absolute inset-0 bg-midnight-navy/10 group-hover:bg-transparent transition-colors"></div>
-                                <span className="material-symbols-outlined text-4xl text-gray-400 absolute inset-0 flex items-center justify-center">person</span>
+                                {member.image ? (
+                                    <img
+                                        src={member.image}
+                                        alt={member.name}
+                                        className="h-full w-full object-cover object-top"
+                                    />
+                                ) : (
+                                    <>
+                                        <div className="absolute inset-0 bg-midnight-navy/10 group-hover:bg-transparent transition-colors"></div>
+                                        <span className="material-symbols-outlined text-4xl text-gray-400 absolute inset-0 flex items-center justify-center">person</span>
+                                    </>
+                                )}
                             </div>
                             <h3 className="text-xl font-bold text-midnight-navy">{member.name}</h3>
                             <p className="text-trophy-gold font-bold text-sm uppercase tracking-wider mt-1">{member.role}</p>

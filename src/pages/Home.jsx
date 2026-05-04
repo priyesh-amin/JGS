@@ -46,12 +46,12 @@ export default function Home() {
             <div className="relative z-10">
               <div className="flex items-center gap-2 mb-4 text-jaguar-green/80">
                 <span className="material-symbols-outlined">volunteer_activism</span>
-                <span className="text-xs font-black uppercase tracking-widest">Total Impact</span>
+                <span className="text-xs font-black uppercase tracking-widest">2025 Raised</span>
               </div>
-              <p className="text-6xl font-serif font-bold text-trophy-gold tracking-tight">£142.5k</p>
+              <p className="text-6xl font-serif font-bold text-trophy-gold tracking-tight">{"\u00A3"}15,546.13</p>
               <div className="w-12 h-1 bg-jaguar-green mt-4 mb-4"></div>
               <p className="text-midnight-navy font-medium leading-relaxed text-sm">
-                Raised for local charities and community projects since our inception.
+                All money raised is split 50% for UK charities and 50% for international charities.
               </p>
             </div>
           </div>

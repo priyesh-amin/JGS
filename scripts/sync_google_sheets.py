@@ -14,8 +14,7 @@ GIDS = {
     'DB_Fixtures': '1747129771',
     'DB_Leaderboards': '253779450'
 }
-
-OUTPUT_DIR = r'g:\My Drive\0 DOE Jaguar Golf Society\jaguar-golf-society\src\data'
+OUTPUT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src', 'data'))
 
 # --- Functions ---
 

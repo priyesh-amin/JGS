@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import MainLayout from '../layouts/MainLayout';
 import DataTable from '../components/DataTable';
 import HandicapTable from '../components/HandicapTable';
@@ -68,9 +68,13 @@ const SHEETS = [
 ];
 
 // --- Individual Tab Content ---
-function SheetTab({ sheet }) {
+function SheetTab({ sheet, onLoadingStateChange }) {
     const { raw, data, columns, loading, error, refetch } = useGoogleSheet(sheet.spreadsheetId, sheet.gid, sheet.customHeaders);
     const { isAdmin } = useAuth();
+
+    useEffect(() => {
+        onLoadingStateChange?.(sheet.id, loading);
+    }, [loading, onLoadingStateChange, sheet.id]);
 
     if (loading) {
         return (
@@ -160,13 +164,35 @@ export default function MembersPortal() {
     };
 
     const [activeTab, setActiveTab] = useState(getInitialTab);
+    const [pendingTab, setPendingTab] = useState(null);
+    const [hasInteracted, setHasInteracted] = useState(false);
 
     // Update URL hash when tab changes
     useEffect(() => {
         window.location.hash = activeTab;
     }, [activeTab]);
 
-    const activeSheet = SHEETS.find(s => s.id === activeTab);
+    const activeSheet = SHEETS.find(s => s.id === activeTab) || SHEETS[0];
+    const isRendering = hasInteracted && Boolean(pendingTab);
+    const pendingSheet = SHEETS.find(s => s.id === pendingTab) || activeSheet;
+
+    const handleTabClick = (sheetId) => {
+        if (sheetId === activeTab) return;
+
+        setHasInteracted(true);
+        setPendingTab(sheetId);
+        setActiveTab(sheetId);
+    };
+
+    const handleLoadingStateChange = useCallback((sheetId, isLoading) => {
+        setPendingTab((current) => {
+            if (isLoading) {
+                return sheetId;
+            }
+
+            return current === sheetId ? null : current;
+        });
+    }, []);
 
     return (
         <MainLayout>
@@ -192,10 +218,12 @@ export default function MembersPortal() {
                     <div className="flex overflow-x-auto scrollbar-hide">
                         {SHEETS.map((sheet) => {
                             const isActive = activeTab === sheet.id;
+                            const isLoading = isRendering && pendingTab === sheet.id;
                             return (
                                 <button
                                     key={sheet.id}
-                                    onClick={() => setActiveTab(sheet.id)}
+                                    onClick={() => handleTabClick(sheet.id)}
+                                    aria-busy={isLoading}
                                     className={`
                                         flex items-center gap-2.5 px-6 py-4 text-sm font-bold uppercase tracking-wider
                                         whitespace-nowrap transition-all duration-200 border-b-[3px] flex-1 justify-center
@@ -203,10 +231,11 @@ export default function MembersPortal() {
                                             ? 'border-trophy-gold text-jaguar-green bg-surface-light'
                                             : 'border-transparent text-gray-400 hover:text-midnight-navy hover:bg-gray-50'
                                         }
+                                        ${isLoading ? 'cursor-wait opacity-90' : ''}
                                     `}
                                 >
-                                    <span className={`material-symbols-outlined text-xl ${isActive ? 'text-trophy-gold' : 'text-gray-300'}`}>
-                                        {sheet.icon}
+                                    <span className={`material-symbols-outlined text-xl ${isActive ? 'text-trophy-gold' : 'text-gray-300'} ${isLoading ? 'animate-spin' : ''}`}>
+                                        {isLoading ? 'progress_activity' : sheet.icon}
                                     </span>
                                     <span className="hidden sm:inline">{sheet.label}</span>
                                     {/* Mobile: shorter labels */}
@@ -222,9 +251,20 @@ export default function MembersPortal() {
                     </div>
                 </div>
 
+                {isRendering && (
+                    <div
+                        className="flex items-center gap-3 rounded-xl border border-trophy-gold/30 bg-trophy-gold/10 px-4 py-3 text-sm font-semibold text-midnight-navy shadow-sm"
+                        role="status"
+                        aria-live="polite"
+                    >
+                        <span className="material-symbols-outlined animate-spin text-trophy-gold">progress_activity</span>
+                        Rendering {pendingSheet.label}...
+                    </div>
+                )}
+
                 {/* Active Tab Content */}
-                <div className="min-h-[400px]">
-                    <SheetTab key={activeSheet.id} sheet={activeSheet} />
+                <div className="min-h-[400px]" aria-busy={isRendering}>
+                    <SheetTab key={activeSheet.id} sheet={activeSheet} onLoadingStateChange={handleLoadingStateChange} />
                 </div>
 
                 {/* Footer Note */}
