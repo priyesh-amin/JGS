@@ -4,7 +4,7 @@
         "date": "18 Apr 2026",
         "event": "Season Opener",
         "venue": "Hampton Court Palace (KT1 4AD)",
-        "cost": "\u00a365",
+        "cost": "\u00c2\u00a365",
         "status": "Open",
         "isCharityDay": false,
         "meetTime": "10:15",
@@ -16,46 +16,43 @@
         "date": "09 May 2026",
         "event": "May Monthly",
         "venue": "Lullingstone Park (BR6 7PX)",
-        "cost": "\u00a365",
+        "cost": "\u00c2\u00a365",
         "status": "Open",
         "isCharityDay": false,
         "meetTime": "TBC",
         "teeTime": "TBC",
-        "deadline": "02 May 2026",
-        "formUrl": "https://docs.google.com/forms/d/1KUuWPHW_aTasYS4Fj3uHHGRgL7kjG168_cTW5ofCSBI/viewform"
+        "deadline": "02 May 2026"
     },
     {
         "id": "may-midweek-2026",
         "date": "20 May 2026",
         "event": "Midweek",
         "venue": "Purley Downs (CR2 0RB)",
-        "cost": "\u00a365",
+        "cost": "\u00c2\u00a365",
         "status": "Open",
         "isCharityDay": false,
         "meetTime": "10:00",
         "teeTime": "11:15",
-        "deadline": "13 May 2026",
-        "formUrl": "https://docs.google.com/forms/d/12rBNI6CFXSLItG-7we6gRRgIooR8AShsm_xh9FJ25jw/viewform"
+        "deadline": "13 May 2026"
     },
     {
         "id": "june-monthly-2026",
         "date": "06 Jun 2026",
         "event": "June Monthly",
         "venue": "Grims Dyke (HA5 4AL)",
-        "cost": "\u00a365",
+        "cost": "\u00c2\u00a365",
         "status": "Open",
         "isCharityDay": false,
         "meetTime": "11:15",
         "teeTime": "12:30",
-        "deadline": "30 May 2026",
-        "formUrl": "https://docs.google.com/forms/d/1XFKzIof_w13s69ZI6Dk6sA2NsqHHHS9Vz8mC7fnjHcw/viewform"
+        "deadline": "30 May 2026"
     },
     {
         "id": "charity-day-2026",
         "date": "17 Jun 2026",
         "event": "Charity Day",
         "venue": "Maylands Golf Club (RM3 0AZ)",
-        "cost": "\u00a3115",
+        "cost": "\u00c2\u00a3115",
         "status": "Open",
         "isCharityDay": true,
         "meetTime": "8:30",
@@ -70,90 +67,84 @@
         "date": "04 Jul 2026",
         "event": "July Monthly",
         "venue": "Croham Hurst (CR2 7HJ)",
-        "cost": "\u00a365",
+        "cost": "\u00c2\u00a365",
         "status": "Open",
         "isCharityDay": false,
         "meetTime": "TBC",
         "teeTime": "TBC",
-        "deadline": "27 May 2026",
-        "formUrl": "https://docs.google.com/forms/d/10EnjX9iLefGTOnSBdjAAMcVd1HjaHQ9XVDbqGHzTmzA/viewform"
+        "deadline": "27 May 2026"
     },
     {
         "id": "july-midweek-2026",
         "date": "23 Jul 2026",
         "event": "Midweek",
         "venue": "Bush Hill Park (N21 2BU)",
-        "cost": "\u00a365",
+        "cost": "\u00c2\u00a365",
         "status": "Open",
         "isCharityDay": false,
         "meetTime": "10:15",
         "teeTime": "11:30",
-        "deadline": "16 Jul 2026",
-        "formUrl": "https://docs.google.com/forms/d/1GHP659_VWtibYyrgG3TBihveFBR52O9Y7qozxzjxBBo/viewform"
+        "deadline": "16 Jul 2026"
     },
     {
         "id": "aug-monthly-2026",
         "date": "08 Aug 2026",
         "event": "August Monthly",
         "venue": "Hazlemere (HP15 7LR)",
-        "cost": "\u00a365",
+        "cost": "\u00c2\u00a365",
         "status": "Open",
         "isCharityDay": false,
         "meetTime": "10:30",
         "teeTime": "11:50",
-        "deadline": "01 Aug 2026",
-        "formUrl": "https://docs.google.com/forms/d/1Xt1Tzt09fTi13IJ5_7ah95rxCv-D8XOKf7H95NFB4is/viewform"
+        "deadline": "01 Aug 2026"
     },
     {
         "id": "aug-midweek-2026",
         "date": "19 Aug 2026",
         "event": "Midweek",
         "venue": "Bentley (CM15 9SS)",
-        "cost": "\u00a365",
+        "cost": "\u00c2\u00a365",
         "status": "Open",
         "isCharityDay": false,
         "meetTime": "10:30",
         "teeTime": "11:30",
-        "deadline": "12 Aug 2026",
-        "formUrl": "https://docs.google.com/forms/d/1k8PbeGiu2-PHuVWafinS_p8dyS4FAVuS3KvHAd_HQvA/viewform"
+        "deadline": "12 Aug 2026"
     },
     {
         "id": "weekend-away-2026",
         "date": "04 Sep 2026",
         "event": "Weekend Away (RC 26)",
         "venue": "Donnington & Co (RG14 3BG)",
-        "cost": "\u00a3340*",
+        "cost": "\u00c2\u00a3340*",
         "status": "Open",
         "isCharityDay": false,
         "meetTime": "8:30",
         "teeTime": "Multi",
         "deadline": "See Notes",
-        "details": "2 nights B&B, Dinner, 3 Rounds. \u00a3340pp (sharing) / \u00a3400pp (single)"
+        "details": "2 nights B&B, Dinner, 3 Rounds. \u00c2\u00a3340pp (sharing) / \u00c2\u00a3400pp (single)"
     },
     {
         "id": "sept-monthly-2026",
         "date": "19 Sep 2026",
         "event": "September Monthly",
         "venue": "Pine Ridge (GU16 9NX)",
-        "cost": "\u00a365",
+        "cost": "\u00c2\u00a365",
         "status": "Open",
         "isCharityDay": false,
         "meetTime": "10:45",
         "teeTime": "11:52",
-        "deadline": "12 Sep 2026",
-        "formUrl": "https://docs.google.com/forms/d/1QU1w7XJhe0Xv1b4KVuEAMjED0zHh0CjZsnfmjAu1LM0/viewform"
+        "deadline": "12 Sep 2026"
     },
     {
         "id": "season-finale-2026",
         "date": "03 Oct 2026",
         "event": "Season Finale",
         "venue": "Basildon (SS16 5JP)",
-        "cost": "\u00a365",
+        "cost": "\u00c2\u00a365",
         "status": "Open",
         "isCharityDay": false,
         "meetTime": "9:45",
         "teeTime": "10:56",
-        "deadline": "26 Sep 2026",
-        "formUrl": "https://docs.google.com/forms/d/1WDNAvSwMmWfGe38oG3Ymprh-PKrdlagOktA7UMejIao/viewform"
+        "deadline": "26 Sep 2026"
     }
 ]
