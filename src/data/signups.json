@@ -181,7 +181,7 @@
                 "name": "Nylesh Vaghela",
                 "requirements": "",
                 "email": "n.vaghela@hotmail.com",
-                "handicap": 18.0,
+                "handicap": 16.6,
                 "signedUp": "18 Mar 2026"
             },
             {
@@ -319,7 +319,7 @@
                 "name": "Atul Gandhi",
                 "requirements": "Vegetarian Meal",
                 "email": "atul_c_gandhi@hotmail.com",
-                "handicap": 26.0,
+                "handicap": 27.3,
                 "signedUp": "12 Apr 2026"
             },
             {
@@ -396,7 +396,7 @@
                 "name": "Hasu Ladva",
                 "requirements": "Buggy",
                 "email": "hasuladva@hotmail.com",
-                "handicap": 20.9,
+                "handicap": 22.3,
                 "signedUp": "11 Apr 2026"
             },
             {
@@ -417,7 +417,7 @@
                 "name": "Kanji Ghedia",
                 "requirements": "Vegetarian Meal, Buggy",
                 "email": "spacetronic@btinternet.com",
-                "handicap": 21.9,
+                "handicap": 23.3,
                 "signedUp": "11 Apr 2026"
             },
             {
@@ -473,7 +473,7 @@
                 "name": "Nylesh Vaghela",
                 "requirements": "",
                 "email": "n.vaghela@hotmail.com",
-                "handicap": 18.0,
+                "handicap": 16.6,
                 "signedUp": "15 Apr 2026"
             },
             {
@@ -556,7 +556,7 @@
         ]
     },
     "may-midweek-2026": {
-        "count": 17,
+        "count": 16,
         "members": [
             {
                 "name": "Arun Sikka",
@@ -570,13 +570,6 @@
                 "requirements": "",
                 "email": "Ashvara@hotmail.com",
                 "handicap": 28.2,
-                "signedUp": "03 May 2026"
-            },
-            {
-                "name": "Atul Patel",
-                "requirements": "",
-                "email": "atul@gktelecom.com",
-                "handicap": 20.7,
                 "signedUp": "03 May 2026"
             },
             {
@@ -615,17 +608,17 @@
                 "signedUp": "03 May 2026"
             },
             {
+                "name": "Gummy Dulku",
+                "requirements": "",
+                "email": "gummy@gktelecom.com",
+                "handicap": 14.5,
+                "signedUp": "07 May 2026"
+            },
+            {
                 "name": "Hardeep Devgun",
                 "requirements": "",
                 "email": "hdemailer@gmail.com",
-                "handicap": 20.1,
-                "signedUp": "03 May 2026"
-            },
-            {
-                "name": "Hitendra Patel",
-                "requirements": "",
-                "email": "hit10dra@gmail.com",
-                "handicap": 26.2,
+                "handicap": 20.9,
                 "signedUp": "03 May 2026"
             },
             {
@@ -650,11 +643,11 @@
                 "signedUp": "03 May 2026"
             },
             {
-                "name": "Nilesh Hindocha",
-                "requirements": "",
-                "email": "nilesh_hindocha@hotmail.com",
-                "handicap": 26.7,
-                "signedUp": "03 May 2026"
+                "name": "Minesh R Patel",
+                "requirements": "Vegetarian Meal",
+                "email": "tanumin@yahoo.co.uk",
+                "handicap": 21.3,
+                "signedUp": "06 May 2026"
             },
             {
                 "name": "Randeep Kalyan",
@@ -680,8 +673,30 @@
         ]
     },
     "june-monthly-2026": {
-        "count": 0,
-        "members": []
+        "count": 3,
+        "members": [
+            {
+                "name": "Arun Sikka",
+                "requirements": "",
+                "email": "",
+                "handicap": "",
+                "signedUp": "10 May 2026"
+            },
+            {
+                "name": "Hasu Ladva",
+                "requirements": "Vegetarian Meal, Buggy",
+                "email": "hasuladva@hotmail.com",
+                "handicap": 22.3,
+                "signedUp": "10 May 2026"
+            },
+            {
+                "name": "Nylesh Vaghela",
+                "requirements": "",
+                "email": "n.vaghela@hotmail.com",
+                "handicap": 16.6,
+                "signedUp": "10 May 2026"
+            }
+        ]
     },
     "charity-day-2026": {
         "count": 0,
@@ -710,7 +725,7 @@
                 "name": "Hasu Ladva",
                 "requirements": "",
                 "email": "hasuladva@hotmail.com",
-                "handicap": 20.9,
+                "handicap": 22.3,
                 "signedUp": "31 Jan 2026"
             },
             {
@@ -724,7 +739,7 @@
                 "name": "Kanji Ghedia",
                 "requirements": "Vegetarian Meal",
                 "email": "spacetronic@btinternet.com",
-                "handicap": 21.9,
+                "handicap": 23.3,
                 "signedUp": "31 Jan 2026"
             },
             {
