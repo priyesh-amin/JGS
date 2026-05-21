@@ -673,7 +673,7 @@
         ]
     },
     "june-monthly-2026": {
-        "count": 3,
+        "count": 4,
         "members": [
             {
                 "name": "Arun Sikka",
@@ -695,6 +695,13 @@
                 "email": "n.vaghela@hotmail.com",
                 "handicap": 16.6,
                 "signedUp": "10 May 2026"
+            },
+            {
+                "name": "Suresh Solanki",
+                "requirements": "Vegetarian Meal, Buggy",
+                "email": "surendrasolanki@btinternet.com",
+                "handicap": 19.7,
+                "signedUp": "17 May 2026"
             }
         ]
     },
