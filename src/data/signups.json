@@ -773,8 +773,16 @@
         "members": []
     },
     "july-monthly-2026": {
-        "count": 0,
-        "members": []
+        "count": 1,
+        "members": [
+            {
+                "name": "Vijay Patel",
+                "requirements": "",
+                "email": "raoulson@hotmail.com",
+                "handicap": 16.2,
+                "signedUp": "22 Jun 2026"
+            }
+        ]
     },
     "july-midweek-2026": {
         "count": 0,
