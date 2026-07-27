@@ -134,22 +134,13 @@ export default function useGoogleSheet(spreadsheetId, gid = null, customHeaders 
             setData(parsed);
             setColumns(cols);
             
-            // Note: omitting `raw` from cache memory to save space unless heavily needed.
-            // Let's cache it since it's just strings.
-            try {
-                sessionStorage.setItem(cacheKey, JSON.stringify({
-                    raw: rawParsed,
-                    data: parsed,
-                    columns: cols,
-                    timestamp: Date.now()
-                }));
-            } catch {}
+            setCachedData(cacheKey, parsed, cols);
         } catch (err) {
             setError(err.message || 'Failed to load data. Please try again.');
         } finally {
             setLoading(false);
         }
-    }, [spreadsheetId, gid, cacheKey]);
+    }, [spreadsheetId, gid, cacheKey, customHeaders]);
 
     useEffect(() => {
         fetchData();

@@ -1,6 +1,5 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 
 export default function Footer() {
   const { isAdmin } = useAuth();
@@ -19,7 +18,7 @@ export default function Footer() {
               Jaguar Golf Society
             </span>
             <div className="text-xs text-gray-300 font-light tracking-wide">
-              © 2024 Jaguar Golf Society. All rights reserved.
+              © {new Date().getFullYear()} Jaguar Golf Society. All rights reserved.
             </div>
           </div>
         </div>

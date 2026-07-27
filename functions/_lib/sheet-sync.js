@@ -231,9 +231,10 @@ export async function syncFixtureSheet(db, csvText, now = new Date()) {
                AND excluded.status = 'published' THEN events.status
              ELSE excluded.status
            END,
-           booking_fields_json = COALESCE(
-             excluded.booking_fields_json, events.booking_fields_json
-           ),
+           booking_fields_json = CASE
+             WHEN ? IS NULL THEN events.booking_fields_json
+             ELSE excluded.booking_fields_json
+           END,
            last_synced_at = excluded.last_synced_at,
            updated_at = excluded.updated_at`,
       ).bind(
@@ -257,6 +258,7 @@ export async function syncFixtureSheet(db, csvText, now = new Date()) {
         timestamp,
         timestamp,
         timestamp,
+        event.bookingFields,
       ),
     );
   }
@@ -292,4 +294,3 @@ export async function recordFailedSync(db, error, now = new Date()) {
   ).run();
   return runId;
 }
-

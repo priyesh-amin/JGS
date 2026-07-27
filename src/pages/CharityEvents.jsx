@@ -1,176 +1,201 @@
-import React, { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
-import fixtures from '../data/fixtures.json';
-import allSignups from '../data/signups.json';
-import EventDetailPanel from '../components/EventDetailPanel';
+import { api } from '../lib/api';
 
 export default function CharityEvents() {
-    const [expandedId, setExpandedId] = useState(null);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-    const toggleRow = (id) => {
-        setExpandedId(prev => (prev === id ? null : id));
-    };
+  const loadEvents = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const result = await api.get('/api/events');
+      setEvents(result.events);
+    } catch (loadError) {
+      setError(loadError.message || 'Fixtures could not be loaded.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-    return (
-        <MainLayout>
-            <div className="w-full max-w-[1280px] flex flex-col gap-12 mx-auto">
-                <div className="flex flex-col gap-4 border-l-4 border-trophy-gold pl-6 py-2">
-                    <h1 className="text-5xl md:text-6xl font-serif font-black leading-tight text-jaguar-green">
-                        Charity Events &amp; Fixtures
-                    </h1>
-                    <p className="text-midnight-navy text-xl font-medium max-w-3xl leading-relaxed">
-                        Join us on the green for a noble cause. View our high-stakes schedule of upcoming charity tournaments and browse the legacy of our fundraising achievements.
-                    </p>
-                </div>
+  useEffect(() => {
+    loadEvents();
+  }, [loadEvents]);
 
-                {/* Calendar Table Section */}
-                <section className="flex flex-col gap-6">
-                    <div className="flex flex-col gap-4 border-b-2 border-border-light pb-3 md:flex-row md:items-center md:justify-between">
-                        <h2 className="text-3xl font-serif font-bold text-midnight-navy flex items-center gap-3">
-                            <span className="material-symbols-outlined text-jaguar-green text-3xl">calendar_month</span>
-                            2026 Season Schedule
-                        </h2>
-                    </div>
-                    <div className="w-full overflow-x-auto rounded-lg border border-border-light shadow-lg bg-surface-light ring-1 ring-black/5">
-                        <table className="w-full text-left border-collapse min-w-[350px]">
-                            <thead>
-                                <tr className="bg-midnight-navy text-white border-b border-border-dark">
-                                    <th className="p-3 md:p-5 text-xs font-bold uppercase tracking-widest w-20 md:w-28">Date</th>
-                                    <th className="p-3 md:p-5 text-xs font-bold uppercase tracking-widest">Event Detail</th>
-                                    <th className="p-3 md:p-5 text-xs font-bold uppercase tracking-widest hidden sm:table-cell">Venue</th>
-                                    <th className="p-3 md:p-5 text-xs font-bold uppercase tracking-widest text-right w-24 md:w-32">Members</th>
-                                    <th className="p-3 md:p-5 text-xs font-bold uppercase tracking-widest w-28 md:w-36 text-right">Register</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {fixtures.map((event) => {
-                                    const [dayOfMonth, month, year] = event.date.split(' ');
-                                    const dateObj = new Date(`${month} ${dayOfMonth}, ${year}`);
-                                    const dayOfWeek = dateObj.toLocaleDateString('en-GB', { weekday: 'short' });
-                                    const isExpanded = expandedId === event.id;
-                                    const signups = allSignups[event.id] ?? { count: 0, members: [] };
-                                    const memberCount = signups.count || signups.members?.length || 0;
+  return (
+    <MainLayout>
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
+        <header className="rounded-2xl bg-jaguar-green px-6 py-8 text-white shadow-lg sm:px-9">
+          <span className="text-xs font-black uppercase tracking-[0.24em] text-trophy-gold">
+            Member fixtures
+          </span>
+          <h1 className="mt-3 text-4xl font-serif font-black sm:text-5xl">
+            Book your next round
+          </h1>
+          <p className="mt-3 max-w-2xl text-base leading-7 text-white/80">
+            View event details, register yourself and manage your booking in one place.
+          </p>
+        </header>
 
-                                    return (
-                                        <React.Fragment key={event.id}>
-                                            {/* Main Row */}
-                                            <tr
-                                                className={`group transition-colors relative border-b border-border-light/60 ${isExpanded ? 'bg-jaguar-green/5' : 'hover:bg-jaguar-green/5'}`}
-                                            >
-                                                {/* Date Cell — clickable to expand */}
-                                                <td
-                                                    className="p-3 md:p-5 align-middle cursor-pointer"
-                                                    onClick={() => toggleRow(event.id)}
-                                                    title="Click to view event details"
-                                                >
-                                                    <div className="flex flex-col items-center gap-1">
-                                                        <div className={`flex flex-col items-center justify-center rounded border ${event.isCharityDay ? 'border-charity-crimson text-charity-crimson' : 'border-jaguar-green text-jaguar-green'} bg-white h-14 w-14 md:h-16 md:w-16 shadow-sm transition-transform group-hover:scale-105`}>
-                                                            <span className="text-[9px] font-bold uppercase leading-none mb-0.5 opacity-70">{dayOfWeek}</span>
-                                                            <span className="text-xl md:text-2xl font-serif font-black leading-none mb-0.5">{dayOfMonth}</span>
-                                                            <span className="text-[9px] font-black uppercase leading-none">{month}</span>
-                                                        </div>
-                                                        {/* Expand chevron */}
-                                                        <span className={`material-symbols-outlined text-base transition-transform duration-200 ${isExpanded ? 'text-jaguar-green rotate-180' : 'text-midnight-navy/20 group-hover:text-jaguar-green/50'}`}>
-                                                            expand_more
-                                                        </span>
-                                                    </div>
-                                                </td>
+        {loading && <FixturesLoading />}
 
-                                                {/* Event Name Cell */}
-                                                <td
-                                                    className="p-3 md:p-5 align-middle cursor-pointer"
-                                                    onClick={() => toggleRow(event.id)}
-                                                >
-                                                    <div className="text-base md:text-lg font-serif font-bold text-midnight-navy group-hover:text-jaguar-green transition-colors">
-                                                        {event.event}
-                                                        {event.isCharityDay && (
-                                                            <span className="ml-2 inline-block px-2 py-0.5 rounded text-[10px] bg-charity-crimson text-white align-middle -mt-1">MAJOR</span>
-                                                        )}
-                                                    </div>
-                                                    {event.deadline && (
-                                                        <div className="text-xs text-midnight-navy/40 mt-0.5 font-medium">
-                                                            Deadline: {event.deadline}
-                                                        </div>
-                                                    )}
-                                                </td>
+        {error && (
+          <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center" role="alert">
+            <span className="material-symbols-outlined text-4xl text-charity-crimson">error</span>
+            <h2 className="mt-2 text-xl font-bold text-midnight-navy">Fixtures are temporarily unavailable</h2>
+            <p className="mt-2 text-sm text-gray-600">{error}</p>
+            <button
+              type="button"
+              onClick={loadEvents}
+              className="mt-5 min-h-11 rounded-lg bg-jaguar-green px-5 py-3 text-sm font-bold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jaguar-green"
+            >
+              Try again
+            </button>
+          </div>
+        )}
 
-                                                {/* Venue Cell */}
-                                                <td className="p-3 md:p-5 text-sm text-midnight-navy hidden sm:table-cell align-middle font-medium">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="material-symbols-outlined text-[18px] text-jaguar-green">location_on</span>
-                                                        {event.venue}
-                                                    </div>
-                                                </td>
+        {!loading && !error && events.length === 0 && (
+          <div className="rounded-xl border border-border-light bg-white p-8 text-center shadow-sm">
+            <span className="material-symbols-outlined text-5xl text-trophy-gold">event_busy</span>
+            <h2 className="mt-3 text-2xl font-serif font-bold text-midnight-navy">No published fixtures yet</h2>
+            <p className="mt-2 text-gray-600">New events will appear here when the committee publishes them.</p>
+          </div>
+        )}
 
-                                                {/* Member Count Cell */}
-                                                <td className="p-3 md:p-5 text-right align-middle">
-                                                    {memberCount > 0 ? (
-                                                        <button
-                                                            onClick={() => {
-                                                                if (expandedId !== event.id) setExpandedId(event.id);
-                                                            }}
-                                                            className="inline-flex items-center gap-1 rounded-full bg-jaguar-green/10 border border-jaguar-green/30 px-3 py-1.5 text-xs font-bold text-jaguar-green hover:bg-jaguar-green/20 transition-colors"
-                                                            title="View sign-up list"
-                                                        >
-                                                            <span className="material-symbols-outlined text-sm">group</span>
-                                                            {memberCount}
-                                                        </button>
-                                                    ) : (
-                                                        <span className="text-xs text-midnight-navy/25 font-medium">—</span>
-                                                    )}
-                                                </td>
-
-                                                {/* Register Button Cell */}
-                                                <td className="p-3 md:p-5 text-right align-middle">
-                                                    {event.status === 'Open' && event.formUrl ? (
-                                                        <a
-                                                            href={event.formUrl}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="inline-flex h-8 md:h-10 w-full items-center justify-center rounded bg-charity-crimson px-3 md:px-4 text-[10px] md:text-xs font-bold uppercase tracking-wider text-white shadow-md transition-all hover:bg-red-800 hover:shadow-lg active:scale-95"
-                                                        >
-                                                            Enter Now
-                                                        </a>
-                                                    ) : event.status === 'Open' ? (
-                                                        <button
-                                                            disabled
-                                                            className="inline-flex h-8 md:h-10 w-full items-center justify-center rounded bg-gray-400 px-3 md:px-4 text-[10px] md:text-xs font-bold uppercase tracking-wider text-white shadow-md opacity-60 cursor-not-allowed"
-                                                        >
-                                                            Coming Soon
-                                                        </button>
-                                                    ) : (
-                                                        <button
-                                                            disabled
-                                                            className="inline-flex h-8 md:h-10 w-full items-center justify-center rounded bg-charity-crimson px-3 md:px-4 text-[10px] md:text-xs font-bold uppercase tracking-wider text-white shadow-md opacity-50 cursor-not-allowed"
-                                                        >
-                                                            Closed
-                                                        </button>
-                                                    )}
-                                                </td>
-                                            </tr>
-
-                                            {/* Expanded Detail Panel Row */}
-                                            {isExpanded && (
-                                                <tr>
-                                                    <td colSpan={5} className="p-0">
-                                                        <EventDetailPanel
-                                                            event={event}
-                                                            signups={signups}
-                                                        />
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </React.Fragment>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                    <p className="text-xs text-midnight-navy/40 text-center">
-                        Click any event row or date to view full details and sign-up list.
-                    </p>
-                </section>
+        {!loading && !error && events.length > 0 && (
+          <section aria-labelledby="fixtures-heading">
+            <div className="mb-4 flex items-end justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-trophy-gold">
+                  2026 season
+                </p>
+                <h2 id="fixtures-heading" className="mt-1 text-3xl font-serif font-black text-midnight-navy">
+                  Available fixtures
+                </h2>
+              </div>
+              <span className="rounded-full bg-jaguar-green/10 px-3 py-1 text-xs font-bold text-jaguar-green">
+                {events.length} event{events.length === 1 ? '' : 's'}
+              </span>
             </div>
-        </MainLayout>
-    );
+            <div className="grid gap-5 md:grid-cols-2">
+              {events.map((event) => <FixtureCard event={event} key={event.id} />)}
+            </div>
+          </section>
+        )}
+      </div>
+    </MainLayout>
+  );
 }
+
+function FixtureCard({ event }) {
+  const date = new Date(`${event.eventDate}T12:00:00Z`);
+  const bookingActive = event.booking?.status === 'registered';
+  const action = actionFor(event, bookingActive);
+  const deadline = event.registrationClosesAt
+    ? formatDateTime(event.registrationClosesAt, event.timezone)
+    : 'Awaiting committee confirmation';
+
+  return (
+    <article className="group flex min-h-full flex-col overflow-hidden rounded-2xl border border-border-light bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
+      <div className="flex items-center gap-4 border-b border-border-light bg-surface-light px-5 py-4">
+        <div className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-midnight-navy text-center text-white shadow">
+          <span className="text-[10px] font-black uppercase tracking-wider text-trophy-gold">
+            {date.toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' })}
+          </span>
+          <span className="text-2xl font-serif font-black leading-none">
+            {date.toLocaleDateString('en-GB', { day: '2-digit', timeZone: 'UTC' })}
+          </span>
+        </div>
+        <div className="min-w-0">
+          <p className="text-xs font-bold uppercase tracking-wider text-gray-500">
+            {date.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', timeZone: 'UTC' })}
+          </p>
+          <h3 className="mt-1 text-xl font-serif font-black text-midnight-navy">
+            {event.title}
+          </h3>
+        </div>
+      </div>
+      <div className="flex flex-1 flex-col p-5">
+        <dl className="space-y-3 text-sm">
+          <Detail icon="location_on" label="Venue" value={event.venue} />
+          <Detail icon="payments" label="Cost" value={event.cost || 'To be confirmed'} />
+          <Detail icon="event_available" label="Registration deadline" value={deadline} />
+        </dl>
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border-light pt-4">
+          <StatusBadge active={bookingActive} availability={event.availability} />
+          <Link
+            to={`/events/${encodeURIComponent(event.id)}`}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-jaguar-green px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-green-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jaguar-green"
+            aria-label={`${action} for ${event.title}`}
+          >
+            {action}
+            <span className="material-symbols-outlined text-lg" aria-hidden="true">arrow_forward</span>
+          </Link>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function Detail({ icon, label, value }) {
+  return (
+    <div className="flex gap-3">
+      <span className="material-symbols-outlined mt-0.5 text-lg text-jaguar-green" aria-hidden="true">{icon}</span>
+      <div>
+        <dt className="text-[10px] font-black uppercase tracking-wider text-gray-400">{label}</dt>
+        <dd className="mt-0.5 font-semibold text-midnight-navy">{value}</dd>
+      </div>
+    </div>
+  );
+}
+
+function StatusBadge({ active, availability }) {
+  const label = active
+    ? 'Confirmed'
+    : availability.registration === 'open'
+      ? 'Registration open'
+      : availability.registration === 'upcoming'
+        ? 'Opens soon'
+        : 'Registration closed';
+  const icon = active ? 'check_circle' : availability.registration === 'open' ? 'how_to_reg' : 'schedule';
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-black ${
+      active
+        ? 'bg-green-100 text-green-800'
+        : availability.registration === 'open'
+          ? 'bg-blue-100 text-blue-800'
+          : 'bg-gray-100 text-gray-700'
+    }`}>
+      <span className="material-symbols-outlined text-base" aria-hidden="true">{icon}</span>
+      {label}
+    </span>
+  );
+}
+
+function actionFor(event, bookingActive) {
+  if (bookingActive) return 'Manage booking';
+  if (event.availability.registration === 'open') return 'View and register';
+  return 'View details';
+}
+
+function formatDateTime(value, timezone) {
+  return new Intl.DateTimeFormat('en-GB', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: timezone || 'Europe/London',
+  }).format(new Date(value));
+}
+
+function FixturesLoading() {
+  return (
+    <div className="grid gap-5 md:grid-cols-2" aria-busy="true" aria-label="Loading fixtures">
+      {[0, 1, 2, 3].map((item) => (
+        <div key={item} className="h-72 animate-pulse rounded-2xl border border-border-light bg-gray-100" />
+      ))}
+    </div>
+  );
+}
+

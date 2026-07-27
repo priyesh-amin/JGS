@@ -23,15 +23,6 @@ export default function DataTable({
     tableHeaderClass = 'bg-surface-light',
     getRowClassName = () => ''
 }) {
-    if (!data.length || !columns.length) {
-        return (
-            <div className="bg-white rounded-xl shadow-md border border-border-light p-12 text-center">
-                <span className="material-symbols-outlined text-5xl text-gray-300 mb-4">info</span>
-                <p className="text-gray-500 font-medium">No data available.</p>
-            </div>
-        );
-    }
-
     const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
     const sortedData = React.useMemo(() => {
@@ -67,6 +58,15 @@ export default function DataTable({
         }
         return sortableItems;
     }, [data, sortConfig]);
+
+    if (!data.length || !columns.length) {
+        return (
+            <div className="bg-white rounded-xl shadow-md border border-border-light p-12 text-center">
+                <span className="material-symbols-outlined text-5xl text-gray-300 mb-4">info</span>
+                <p className="text-gray-500 font-medium">No data available.</p>
+            </div>
+        );
+    }
 
     const requestSort = (key) => {
         let direction = 'asc';

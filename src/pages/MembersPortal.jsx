@@ -3,21 +3,10 @@ import MainLayout from '../layouts/MainLayout';
 import DataTable from '../components/DataTable';
 import HandicapTable from '../components/HandicapTable';
 import useGoogleSheet from '../hooks/useGoogleSheet';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 
 // --- Sheet Configuration ---
 const SHEETS = [
-    {
-        id: 'balance',
-        label: 'Balance',
-        icon: 'account_balance_wallet',
-        spreadsheetId: '1DRIEyRke1xsJ4QpS5Tpnp25gEHa8Ce48CboyCTibqzA',
-        customHeaders: ['Name', 'Amount Owed'],
-        headerColor: 'bg-jaguar-green',
-        headerTextColor: 'text-white',
-        accentBorder: 'border-trophy-gold',
-        editUrl: 'https://docs.google.com/spreadsheets/d/1DRIEyRke1xsJ4QpS5Tpnp25gEHa8Ce48CboyCTibqzA/edit',
-    },
     {
         id: 'handicap',
         label: 'Handicap Index',
@@ -156,6 +145,7 @@ function SheetTab({ sheet, onLoadingStateChange }) {
 
 // --- Main Page ---
 export default function MembersPortal() {
+    const { user } = useAuth();
     // Read active tab from URL hash, default to first sheet
     const getInitialTab = () => {
         const hash = window.location.hash.replace('#', '');
@@ -213,6 +203,39 @@ export default function MembersPortal() {
                     </div>
                 </div>
 
+                <section className="rounded-xl border border-trophy-gold/30 bg-white p-5 shadow-md" aria-labelledby="finance-resource-heading">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-start gap-3">
+                            <span className="material-symbols-outlined rounded-full bg-jaguar-green/10 p-2 text-jaguar-green" aria-hidden="true">
+                                account_balance_wallet
+                            </span>
+                            <div>
+                                <h2 id="finance-resource-heading" className="text-lg font-serif font-bold text-midnight-navy">
+                                    Your finance resource
+                                </h2>
+                                <p className="mt-1 text-sm text-gray-600">
+                                    This link is attached only to your signed-in account. Other members cannot retrieve it through the website.
+                                </p>
+                            </div>
+                        </div>
+                        {user.financeUrl ? (
+                            <a
+                                href={user.financeUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-jaguar-green px-5 py-3 text-sm font-black text-white shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jaguar-green"
+                            >
+                                Open my balance
+                                <span className="material-symbols-outlined text-lg" aria-hidden="true">open_in_new</span>
+                            </a>
+                        ) : (
+                            <span className="rounded-lg bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+                                No personal finance link is configured.
+                            </span>
+                        )}
+                    </div>
+                </section>
+
                 {/* Tab Navigation */}
                 <div className="bg-white rounded-xl shadow-md border border-border-light overflow-hidden">
                     <div className="flex overflow-x-auto scrollbar-hide">
@@ -240,7 +263,6 @@ export default function MembersPortal() {
                                     <span className="hidden sm:inline">{sheet.label}</span>
                                     {/* Mobile: shorter labels */}
                                     <span className="sm:hidden">
-                                        {sheet.id === 'balance' && 'Balance'}
                                         {sheet.id === 'handicap' && 'HCP'}
                                         {sheet.id === 'singles' && 'Singles'}
                                         {sheet.id === 'doubles' && 'Doubles'}

@@ -15,19 +15,30 @@ import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Admin from './pages/Admin';
 import MembersPortal from './pages/MembersPortal';
+import EventDetails from './pages/EventDetails';
+import AccountSecurity from './pages/AccountSecurity';
 
 function App() {
   return (
     <Router>
       <AuthProvider>
+        <ScrollToTop />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route
             path="/admin"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute requiredRole="admin">
                 <Admin />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/events/:eventId"
+            element={
+              <ProtectedRoute>
+                <EventDetails />
               </ProtectedRoute>
             }
           />
@@ -36,6 +47,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <CharityEvents />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/account/security"
+            element={
+              <ProtectedRoute>
+                <AccountSecurity />
               </ProtectedRoute>
             }
           />

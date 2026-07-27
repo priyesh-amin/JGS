@@ -26,15 +26,15 @@ function parseCookies(request) {
 }
 
 function sessionCookie(token, request, maxAge) {
-  const secure = new URL(request.url).protocol === 'https:' ? '; Secure' : '';
-  return [
+  const attributes = [
     `${SESSION_COOKIE}=${encodeURIComponent(token)}`,
     'Path=/',
     'HttpOnly',
     'SameSite=Lax',
     `Max-Age=${maxAge}`,
-    secure,
-  ].join('; ');
+  ];
+  if (new URL(request.url).protocol === 'https:') attributes.push('Secure');
+  return attributes.join('; ');
 }
 
 export async function currentUser(context) {
@@ -288,4 +288,3 @@ export async function bootstrapAdmin(context, input) {
 
   return { id, email, displayName, role: 'admin', status: 'active' };
 }
-
