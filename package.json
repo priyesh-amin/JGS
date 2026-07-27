@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "node --test",
+    "verify:api": "node scripts/verify-booking-api.mjs",
     "check": "npm run lint && npm run test && npm run build"
   },
   "dependencies": {

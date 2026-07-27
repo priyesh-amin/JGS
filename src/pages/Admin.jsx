@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useId, useState } from 'react';
 import MainLayout from '../layouts/MainLayout';
 import { api } from '../lib/api';
 
@@ -495,7 +495,7 @@ function EmptyState({ icon, text }) {
 }
 
 function TextField({ label, value, onChange, type = 'text', required = false, minLength }) {
-  const id = `field-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+  const id = useId();
   return (
     <label htmlFor={id} className="block text-sm font-bold text-midnight-navy">
       {label}
@@ -513,7 +513,7 @@ function TextField({ label, value, onChange, type = 'text', required = false, mi
 }
 
 function SelectField({ label, value, onChange, options }) {
-  const id = `select-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+  const id = useId();
   return (
     <label htmlFor={id} className="block text-sm font-bold text-midnight-navy">
       {label}
@@ -525,7 +525,7 @@ function SelectField({ label, value, onChange, options }) {
 }
 
 function DateTimeField({ label, value, onChange }) {
-  const id = `date-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+  const id = useId();
   return (
     <label htmlFor={id} className="block text-sm font-bold text-midnight-navy">
       {label}
@@ -552,4 +552,3 @@ function formatDate(value) {
 function formatDateTime(value) {
   return new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
 }
-

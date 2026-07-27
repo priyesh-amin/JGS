@@ -72,10 +72,17 @@ export async function currentUser(context) {
   };
 }
 
-export async function requireUser(context) {
+export async function requireUser(context, { allowPasswordChange = false } = {}) {
   const user = await currentUser(context);
   if (!user) {
     throw new AppError(401, 'unauthenticated', 'Sign in to continue.');
+  }
+  if (user.mustChangePassword && !allowPasswordChange) {
+    throw new AppError(
+      403,
+      'password_change_required',
+      'Change your temporary password before continuing.',
+    );
   }
   return user;
 }
@@ -209,7 +216,7 @@ export async function logout(context) {
 }
 
 export async function changePassword(context, currentPassword, newPassword) {
-  const user = await requireUser(context);
+  const user = await requireUser(context, { allowPasswordChange: true });
   const row = await context.env.DB.prepare(
     `SELECT password_hash, password_salt, password_iterations
      FROM members WHERE id = ?`,

@@ -24,6 +24,9 @@ export default defineConfig([
     },
     rules: {
       'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // Data fetching is intentionally effect-driven. The effect starts an
+      // asynchronous request; it does not derive state synchronously.
+      'react-hooks/set-state-in-effect': 'off',
     },
   },
 ])

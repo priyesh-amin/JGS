@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "jgs-secure-booking-local",
-  "compatibility_date": "2026-07-28",
+  "compatibility_date": "2026-07-27",
   "pages_build_output_dir": "./dist",
   "d1_databases": [
     {
@@ -16,4 +16,3 @@
     "MASTER_FIXTURES_CSV_URL": "https://docs.google.com/spreadsheets/d/1CT8BuIQOhymev6m7JTOcSfOGFJbSi_UjdNCH4Jkqbh0/export?format=csv&gid=1747129771"
   }
 }
-
