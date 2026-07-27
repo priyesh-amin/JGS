@@ -1,0 +1,11 @@
+# Copy to .dev.vars for local Pages Functions development. Never commit values.
+APP_ORIGIN=http://127.0.0.1:8788
+BOOTSTRAP_TOKEN=replace-with-a-long-random-local-token
+
+# Existing public fixture source. This is configuration, not a secret.
+MASTER_FIXTURES_CSV_URL=https://docs.google.com/spreadsheets/d/1CT8BuIQOhymev6m7JTOcSfOGFJbSi_UjdNCH4Jkqbh0/export?format=csv&gid=1747129771
+
+# Required before spreadsheet delivery can be production-enabled.
+BOOKING_SYNC_WEBHOOK_URL=
+BOOKING_SYNC_TOKEN=
+
