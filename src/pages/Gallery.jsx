@@ -41,7 +41,7 @@ export default function Gallery() {
             <div className="bg-surface-light min-h-screen">
                 {/* Hero Section */}
                 <div className="relative bg-midnight-navy py-20">
-                    <div className="absolute inset-0 bg-[url('/images/hero-bg.jpg')] bg-cover bg-center opacity-20"></div>
+                    <div className="absolute inset-0 bg-[url('/images/hero-bg-2026.png')] bg-cover bg-center opacity-20"></div>
                     <div className="absolute inset-0 bg-gradient-to-t from-midnight-navy via-transparent to-transparent"></div>
                     <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
                         <h1 className="text-4xl md:text-5xl font-serif font-bold text-white mb-4">

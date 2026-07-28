@@ -11,8 +11,7 @@ booking-output credentials.
 - Node domain tests: 15 passed, 0 failed.
 - Vite production build: passed.
 - D1 migration: 19 statements applied successfully to an empty local database.
-- Existing build warning remains: `/images/hero-bg.jpg` is unresolved at build
-  time.
+- Production build completes without unresolved asset warnings.
 
 ## API and data checks
 

@@ -46,7 +46,7 @@ export default function Sponsorship() {
             {/* Hero Section */}
             <div className="relative bg-jaguar-green py-24">
                 <div className="absolute inset-0 overflow-hidden">
-                    <div className="absolute inset-0 bg-[url('/images/hero-bg.jpg')] bg-cover bg-center opacity-10"></div>
+                    <div className="absolute inset-0 bg-[url('/images/hero-bg-2026.png')] bg-cover bg-center opacity-10"></div>
                     <div className="absolute inset-0 bg-gradient-to-t from-jaguar-green via-transparent to-transparent"></div>
                 </div>
                 <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
