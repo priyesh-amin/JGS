@@ -8,7 +8,7 @@ booking-output credentials.
 ## Automated checks
 
 - ESLint: passed.
-- Node domain tests: 13 passed, 0 failed.
+- Node domain tests: 15 passed, 0 failed.
 - Vite production build: passed.
 - D1 migration: 19 statements applied successfully to an empty local database.
 - Existing build warning remains: `/images/hero-bg.jpg` is unresolved at build
@@ -49,9 +49,10 @@ Passed:
 ## Dependency and deployment review
 
 - `npm audit --omit=dev` reports two moderate React Router advisories. The SPA
-  does not use SSR/RSC hydration and no untrusted value is passed to a redirect,
-  `Link`, or `navigate`; the available major upgrade introduces a different RSC
-  advisory, so the lockfile was left unchanged pending an upstream clean release.
+  does not use SSR/RSC hydration, and post-login navigation now passes through a
+  tested internal-path validator that rejects protocol-relative, encoded-slash,
+  and backslash destinations. The available major upgrade introduces a different
+  RSC advisory, so the lockfile remains unchanged pending a clean release.
 - The full audit also reports development-tool advisories in Babel, esbuild,
   brace-expansion, js-yaml, and PostCSS. Runtime member data is not exposed to
   these local build tools.

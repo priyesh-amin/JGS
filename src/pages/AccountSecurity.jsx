@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
 import { useAuth } from '../contexts/useAuth';
+import { safeInternalPath } from '../lib/navigation';
 
 export default function AccountSecurity() {
   const { changePassword, user } = useAuth();
@@ -23,7 +24,7 @@ export default function AccountSecurity() {
     setSubmitting(true);
     try {
       await changePassword(currentPassword, newPassword);
-      navigate(location.state?.from?.pathname || '/events', { replace: true });
+      navigate(safeInternalPath(location.state?.from?.pathname), { replace: true });
     } catch (changeError) {
       setError(changeError.message || 'Your password could not be changed.');
     } finally {

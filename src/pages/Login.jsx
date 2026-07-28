@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/useAuth';
 import MainLayout from '../layouts/MainLayout';
+import { safeInternalPath } from '../lib/navigation';
 
 export default function Login() {
     const [email, setEmail] = useState('');
@@ -13,7 +14,7 @@ export default function Login() {
     const location = useLocation();
 
     // Default redirect to home if no specific destination was requested
-    const from = location.state?.from?.pathname || '/events';
+    const from = safeInternalPath(location.state?.from?.pathname);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
