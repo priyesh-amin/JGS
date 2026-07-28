@@ -12,8 +12,10 @@ validated:
 3. Set `APP_ORIGIN` to the exact HTTPS production origin.
 4. Set a one-time, high-entropy `BOOTSTRAP_TOKEN`.
 5. Confirm `MASTER_FIXTURES_CSV_URL` is the authorised fixture CSV.
-6. Supply `BOOKING_SYNC_WEBHOOK_URL` and `BOOKING_SYNC_TOKEN` for the
-   committee-owned spreadsheet adapter.
+6. Deploy `integrations/google-apps-script/BookingWebhook.gs` as a web app,
+   configure its `SPREADSHEET_ID` and `BOOKING_SYNC_TOKEN` script properties,
+   and supply the resulting `BOOKING_SYNC_WEBHOOK_URL` plus the same
+   `BOOKING_SYNC_TOKEN` to Cloudflare Pages.
 7. Supply the authorised initial administrator email and approved member
    roster. Create imported accounts disabled until committee verification.
 8. Confirm exact September publication, registration, and cancellation

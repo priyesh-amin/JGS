@@ -38,6 +38,7 @@ export async function deliverPendingOutbox(context, { limit = 25 } = {}) {
         },
         body: JSON.stringify({
           schemaVersion: 1,
+          webhookToken: token,
           idempotencyKey: item.idempotency_key,
           eventType: item.event_type,
           booking: JSON.parse(item.payload_json),
@@ -62,6 +63,17 @@ export async function deliverPendingOutbox(context, { limit = 25 } = {}) {
 
       if (!response.ok) {
         throw new Error(`Webhook returned HTTP ${response.status}`);
+      }
+      let acknowledgement;
+      try {
+        acknowledgement = await response.json();
+      } catch {
+        throw new Error('Webhook did not return a JSON acknowledgement');
+      }
+      if (acknowledgement?.ok !== true) {
+        throw new Error(
+          String(acknowledgement?.error || 'Webhook rejected the update'),
+        );
       }
       const sentAt = new Date().toISOString();
       await context.env.DB.prepare(
@@ -115,4 +127,3 @@ export async function integrationStatus(db) {
     lastFixtureSync: lastFixtureSync || null,
   };
 }
-

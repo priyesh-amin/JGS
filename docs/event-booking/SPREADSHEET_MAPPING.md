@@ -38,6 +38,8 @@ configuration.
 The configured endpoint receives `POST` JSON with:
 
 - `Authorization: Bearer <BOOKING_SYNC_TOKEN>`
+- `webhookToken` in the HTTPS JSON body for the Google Apps Script adapter,
+  because Apps Script web apps do not expose arbitrary request headers;
 - `Idempotency-Key: <stable booking/version key>`
 - `schemaVersion`
 - `eventType`
@@ -54,7 +56,7 @@ The endpoint must:
 3. store and deduplicate the idempotency key;
 4. update the canonical operational row on cancellation rather than append a
    second active row;
-5. return a 2xx response only after the update is durable.
+5. return JSON `{ "ok": true }` only after the update is durable. A 2xx
+   response containing `{ "ok": false }` remains a retryable failure.
 
 Form URLs and Google Form response rows are not inputs to the new booking state.
-
