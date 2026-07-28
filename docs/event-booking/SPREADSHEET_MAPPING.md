@@ -29,9 +29,12 @@ New optional columns:
 | `JoiningInformation` | `joining_information` | Plain text |
 | `BookingFields` | `booking_fields_json` | JSON object |
 
-If a new optional column is absent or blank, synchronisation preserves an
-existing configured value. It does not guess a deadline or erase a valid
-configuration.
+If an optional column is absent or blank, synchronisation preserves an existing
+administrator-configured value. For a new event with no
+`CancellationClosesAt`, it applies the configurable
+`DEFAULT_CANCELLATION_CUTOFF_DAYS` fallback (seven days by default) at 23:59:59
+in the event timezone. Explicit sheet and administrator values take precedence.
+Other missing booking windows remain unavailable until configured.
 
 ## Booking output webhook
 

@@ -268,6 +268,11 @@ async function route(context) {
         const result = await syncFixtureSheet(
           context.env.DB,
           await response.text(),
+          new Date(),
+          {
+            defaultCancellationCutoffDays:
+              context.env.DEFAULT_CANCELLATION_CUTOFF_DAYS,
+          },
         );
         return json({ sync: result });
       } catch (error) {

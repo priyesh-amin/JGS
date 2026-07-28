@@ -13,6 +13,7 @@
   ],
   "vars": {
     "APP_ORIGIN": "http://127.0.0.1:8788",
-    "MASTER_FIXTURES_CSV_URL": "https://docs.google.com/spreadsheets/d/1CT8BuIQOhymev6m7JTOcSfOGFJbSi_UjdNCH4Jkqbh0/export?format=csv&gid=1747129771"
+    "MASTER_FIXTURES_CSV_URL": "https://docs.google.com/spreadsheets/d/1CT8BuIQOhymev6m7JTOcSfOGFJbSi_UjdNCH4Jkqbh0/export?format=csv&gid=1747129771",
+    "DEFAULT_CANCELLATION_CUTOFF_DAYS": "7"
   }
 }

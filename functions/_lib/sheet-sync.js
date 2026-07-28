@@ -1,5 +1,7 @@
 import { AppError } from './errors.js';
 
+export const DEFAULT_CANCELLATION_CUTOFF_DAYS = 7;
+
 export function parseCsv(text) {
   const rows = [];
   let row = [];
@@ -77,6 +79,62 @@ function optionalIso(valueToParse, field, rowNumber) {
   return parsed.toISOString();
 }
 
+function cancellationCutoff(eventDate, timezone, days) {
+  const [year, month, day] = eventDate.split('-').map(Number);
+  const cutoffDate = new Date(Date.UTC(year, month - 1, day - days));
+  const targetUtc = Date.UTC(
+    cutoffDate.getUTCFullYear(),
+    cutoffDate.getUTCMonth(),
+    cutoffDate.getUTCDate(),
+    23,
+    59,
+    59,
+  );
+  const formatter = new Intl.DateTimeFormat('en-GB', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  });
+  let guess = targetUtc;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const parts = Object.fromEntries(
+      formatter.formatToParts(new Date(guess))
+        .filter((part) => part.type !== 'literal')
+        .map((part) => [part.type, Number(part.value)]),
+    );
+    const representedUtc = Date.UTC(
+      parts.year,
+      parts.month - 1,
+      parts.day,
+      parts.hour,
+      parts.minute,
+      parts.second,
+    );
+    guess -= representedUtc - targetUtc;
+  }
+  return new Date(guess).toISOString();
+}
+
+function cutoffDays(valueToParse) {
+  if (valueToParse === undefined || valueToParse === null || valueToParse === '') {
+    return DEFAULT_CANCELLATION_CUTOFF_DAYS;
+  }
+  const parsed = Number(valueToParse);
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 365) {
+    throw new AppError(
+      500,
+      'invalid_configuration',
+      'DEFAULT_CANCELLATION_CUTOFF_DAYS must be an integer from 0 to 365.',
+    );
+  }
+  return parsed;
+}
+
 function normaliseStatus(input) {
   const status = String(input || '').trim().toLowerCase();
   if (status === 'closed') return 'closed';
@@ -85,7 +143,8 @@ function normaliseStatus(input) {
   return 'published';
 }
 
-export function parseFixtureSheet(csvText) {
+export function parseFixtureSheet(csvText, options = {}) {
+  const defaultCutoffDays = cutoffDays(options.defaultCancellationCutoffDays);
   const rows = parseCsv(csvText);
   if (rows.length < 2) {
     throw new AppError(
@@ -138,6 +197,22 @@ export function parseFixtureSheet(csvText) {
       }
     }
 
+    const timezone = value(record, 'Timezone') || 'Europe/London';
+    try {
+      new Intl.DateTimeFormat('en-GB', { timeZone: timezone }).format();
+    } catch {
+      throw new AppError(
+        422,
+        'invalid_sheet_data',
+        `Row ${rowNumber} has an invalid Timezone.`,
+      );
+    }
+    const explicitCancellationClosesAt = optionalIso(
+      value(record, 'CancellationClosesAt', 'Cancellation Closes At'),
+      'CancellationClosesAt',
+      rowNumber,
+    );
+
     records.push({
       id,
       sourceKey: id,
@@ -168,12 +243,10 @@ export function parseFixtureSheet(csvText) {
         'RegistrationClosesAt',
         rowNumber,
       ),
-      cancellationClosesAt: optionalIso(
-        value(record, 'CancellationClosesAt', 'Cancellation Closes At'),
-        'CancellationClosesAt',
-        rowNumber,
-      ),
-      timezone: value(record, 'Timezone') || 'Europe/London',
+      cancellationClosesAt: explicitCancellationClosesAt
+        || cancellationCutoff(eventDate, timezone, defaultCutoffDays),
+      hasExplicitCancellationClosesAt: Boolean(explicitCancellationClosesAt),
+      timezone,
       status: normaliseStatus(value(record, 'Status')),
       bookingFields: bookingFields || null,
     });
@@ -181,8 +254,13 @@ export function parseFixtureSheet(csvText) {
   return records;
 }
 
-export async function syncFixtureSheet(db, csvText, now = new Date()) {
-  const events = parseFixtureSheet(csvText);
+export async function syncFixtureSheet(
+  db,
+  csvText,
+  now = new Date(),
+  options = {},
+) {
+  const events = parseFixtureSheet(csvText, options);
   const timestamp = now.toISOString();
   const runId = crypto.randomUUID();
   const statements = [
@@ -222,9 +300,12 @@ export async function syncFixtureSheet(db, csvText, now = new Date()) {
            registration_closes_at = COALESCE(
              excluded.registration_closes_at, events.registration_closes_at
            ),
-           cancellation_closes_at = COALESCE(
-             excluded.cancellation_closes_at, events.cancellation_closes_at
-           ),
+           cancellation_closes_at = CASE
+             WHEN ? = 1 THEN excluded.cancellation_closes_at
+             ELSE COALESCE(
+               events.cancellation_closes_at, excluded.cancellation_closes_at
+             )
+           END,
            timezone = COALESCE(excluded.timezone, events.timezone),
            status = CASE
              WHEN events.status IN ('open', 'closed', 'completed')
@@ -258,6 +339,7 @@ export async function syncFixtureSheet(db, csvText, now = new Date()) {
         timestamp,
         timestamp,
         timestamp,
+        event.hasExplicitCancellationClosesAt ? 1 : 0,
         event.bookingFields,
       ),
     );

@@ -8,7 +8,7 @@ booking-output credentials.
 ## Automated checks
 
 - ESLint: passed.
-- Node domain tests: 9 passed, 0 failed.
+- Node domain tests: 13 passed, 0 failed.
 - Vite production build: passed.
 - D1 migration: 19 statements applied successfully to an empty local database.
 - Existing build warning remains: `/images/hero-bg.jpg` is unresolved at build
@@ -31,7 +31,8 @@ Passed:
 - self-cancellation and persisted cancelled state;
 - canonical administrator attendee list;
 - fixture sync rerun retained 12 stable event records;
-- fixture sync preserved administrator-configured booking windows;
+- fixture sync applied the configurable seven-day cancellation fallback;
+- fixture sync preserved administrator-configured registration and cancellation windows;
 - successful sync timestamp/status exposed to administrators;
 - missing booking webhook retained visible, retryable outbox records.
 
@@ -45,12 +46,24 @@ Passed:
 - Administrator dashboard exercised at the default desktop viewport.
 - No console errors were recorded for the local Pages application.
 
+## Dependency and deployment review
+
+- `npm audit --omit=dev` reports two moderate React Router advisories. The SPA
+  does not use SSR/RSC hydration and no untrusted value is passed to a redirect,
+  `Link`, or `navigate`; the available major upgrade introduces a different RSC
+  advisory, so the lockfile was left unchanged pending an upstream clean release.
+- The full audit also reports development-tool advisories in Babel, esbuild,
+  brace-expansion, js-yaml, and PostCSS. Runtime member data is not exposed to
+  these local build tools.
+- Cloudflare preview deployment was attempted only after local verification, but
+  `wrangler whoami` returned an expired/unavailable token. No remote database or
+  deployment was changed.
 ## Not verified against production
 
 - Real D1 binding and migration.
 - Authorised member roster and finance links.
 - Exact September windows.
 - Live spreadsheet booking adapter, authentication, and row-level idempotency.
-- Cloudflare preview/production deployment and logs.
+- Cloudflare preview/production deployment and logs (blocked by Wrangler authentication).
 
 These are release blockers, not local implementation failures.

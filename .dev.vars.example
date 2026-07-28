@@ -4,6 +4,9 @@ BOOTSTRAP_TOKEN=replace-with-a-long-random-local-token
 
 # Existing public fixture source. This is configuration, not a secret.
 MASTER_FIXTURES_CSV_URL=https://docs.google.com/spreadsheets/d/1CT8BuIQOhymev6m7JTOcSfOGFJbSi_UjdNCH4Jkqbh0/export?format=csv&gid=1747129771
+# Used only when a fixture has no CancellationClosesAt value. Event-specific
+# spreadsheet or administrator values take precedence.
+DEFAULT_CANCELLATION_CUTOFF_DAYS=7
 
 # Required before spreadsheet delivery can be production-enabled.
 BOOKING_SYNC_WEBHOOK_URL=

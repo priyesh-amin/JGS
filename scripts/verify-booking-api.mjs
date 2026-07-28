@@ -188,7 +188,8 @@ check(result.status === 200, 'fixture synchronisation reruns');
 result = await request('/api/admin/events', { cookie: adminCookie });
 const configured = result.data.events.find((event) => event.id === eventId);
 check(
-  configured?.registration_opens_at === '2026-07-01T00:00:00.000Z',
+  configured?.registration_opens_at === '2026-07-01T00:00:00.000Z'
+    && configured?.cancellation_closes_at === '2026-09-16T22:59:59.000Z',
   'fixture rerun preserves configured booking windows',
 );
 

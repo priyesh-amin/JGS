@@ -12,7 +12,24 @@ test('fixture mapping preserves stable IDs and configurable windows', () => {
   assert.equal(event.eventDate, '2026-09-19');
   assert.equal(event.status, 'published');
   assert.equal(event.registrationOpensAt, '2026-08-20T08:00:00.000Z');
+  assert.equal(event.cancellationClosesAt, '2026-09-16T17:00:00.000Z');
+  assert.equal(event.hasExplicitCancellationClosesAt, true);
   assert.equal(event.timezone, 'Europe/London');
+});
+
+test('missing cancellation timestamp uses the configurable one-week fallback', () => {
+  const csv = [
+    'ID,Date,Event,Venue,Status,Timezone',
+    'sept,19 Sep 2026,September Monthly,Pine Ridge,Open,Europe/London',
+  ].join('\n');
+  const [event] = parseFixtureSheet(csv);
+  assert.equal(event.cancellationClosesAt, '2026-09-12T22:59:59.000Z');
+  assert.equal(event.hasExplicitCancellationClosesAt, false);
+
+  const [customEvent] = parseFixtureSheet(csv, {
+    defaultCancellationCutoffDays: 10,
+  });
+  assert.equal(customEvent.cancellationClosesAt, '2026-09-09T22:59:59.000Z');
 });
 
 test('duplicate source IDs reject the entire sync input', () => {
@@ -38,3 +55,19 @@ test('invalid optional timestamps are rejected instead of guessed', () => {
   );
 });
 
+test('invalid timezone and cutoff configuration fail the entire sync input', () => {
+  const csv = [
+    'ID,Date,Event,Venue,Status,Timezone',
+    'sept,19 Sep 2026,September Monthly,Pine Ridge,Open,Not/A_Timezone',
+  ].join('\n');
+  assert.throws(
+    () => parseFixtureSheet(csv),
+    (error) => error.code === 'invalid_sheet_data',
+  );
+  assert.throws(
+    () => parseFixtureSheet(csv.replace('Not/A_Timezone', 'Europe/London'), {
+      defaultCancellationCutoffDays: 'seven',
+    }),
+    (error) => error.code === 'invalid_configuration',
+  );
+});
