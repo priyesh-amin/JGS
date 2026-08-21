@@ -37,6 +37,15 @@ below in Preview before Production:
 
 No production IDs, accounts, deadlines, or secrets belong in source control.
 
+## Current production target
+
+For the release approved on 21 August 2026, the canonical public and
+authentication origin is
+`https://jaguargolfsociety.siteproductions.co.uk/`. The attached provider Pages
+hostname remains a public/read API alias and is not an accepted write origin.
+Fresh configuration must continue to be downloaded and compared before any
+future deployment; do not reconstruct provider identifiers from this document.
+
 ## Authoritative fixture automation
 
 The `DB_Fixtures` tab remains the authoritative event-information source.

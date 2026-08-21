@@ -2,11 +2,20 @@
 
 ## Outcome
 
-Recommendation: `READY FOR EXTERNAL GATE`.
+Recommendation: `PRODUCTION RELEASED — VERIFIED READY`.
 
-The approved operational release is complete locally and preserved on `codex/jaguar-finish-2026-08-21`. It is not production-complete: Google/Cloudflare authorization, remote migration/deployment, exact remaining business inputs and real administrator/member acceptance still require Priyesh's explicit gate approval.
+Priyesh approved the external gate and explicitly designated
+`https://jaguargolfsociety.siteproductions.co.uk/` as the canonical production
+origin. The approved release is deployed there. Google Apps Script, Cloudflare
+Worker, Pages and D1 setup are complete; signed administrator delivery and
+non-mutating real-member acceptance passed. A controlled scheduled Worker cycle
+also completed successfully, and the normal minute-7 hourly trigger was restored
+and observed after provider propagation settled.
 
-No Google, Cloudflare, DNS, production D1, spreadsheet, sharing, account or booking mutation was performed in this recovery.
+No fabricated member or booking was created. Both genuine production bookings
+were preserved and projected to the restricted operational workbook. The second
+booking was genuine member activity outside the release operator's actions;
+member UAT itself did not submit a registration or cancellation.
 
 ## Recovered stopping point and preservation
 
@@ -22,13 +31,13 @@ No Google, Cloudflare, DNS, production D1, spreadsheet, sharing, account or book
 
 ## WP1–WP5 status
 
-| Work package | Local state | Evidence | Remaining external/human gate |
+| Work package | State | Evidence | Remaining governance/input |
 | --- | --- | --- | --- |
-| WP1 fixture foundation | Complete | Twelve-ID allowlist, strict UK/ISO window parsing, fail-closed classification, immediate authenticated refresh signal, hourly reconciliation, last-known-safe handling and focused tests | Read back approved remote bindings; deploy/verify Worker and authoritative source against Preview |
-| WP2 operational authentication | Complete | Fixed operational username, individual member identity separation, recovery-only controls, session/role isolation and 26 focused auth/integration tests | Confirm real approved accounts and complete real administrator/member Preview UAT |
-| WP3 secure booking | Complete locally; externally gated | Exact required `Veg` / `Non-veg` with no default; same member/admin validation; buggy unchanged; origin/role/race/duplicate/cancel controls; dietary output remains off | Exact real fixture windows/business rules, Preview migration/deployment and real-identity acceptance |
-| WP4 outputs and Hall of Fame | Complete locally; externally gated | Leased signed idempotent one-way booking adapter, bounded retry/recovery, atomic last-valid Hall of Fame, three migrations, 21-step API smoke and Functions packaging | Apps Script authorization/private HMAC setup, remote D1 backup/migration, Worker/Pages Preview then Production verification |
-| WP5 operations and handover | Complete locally; externally gated | Protected source dashboard, approved-link allowlist, role/non-disclosure tests, ownership/direction/sync/error/recovery guidance and committee handover | Enter approved links privately, retain unresolved ownership where stated, and obtain committee sign-off |
+| WP1 fixture foundation | Production | Twelve-ID allowlist, strict UK/ISO window parsing, fail-closed classification, hourly Worker reconciliation and last-known-safe handling; latest run accounted for all 12 fixtures | Committee must continue to supply exact booking-window changes; invalid/missing rows remain fail-closed |
+| WP2 operational authentication | Production | Sole shared administrator plus separate ordinary-member identity; session and role isolation; real admin/member UAT on the custom origin | Normal committee account stewardship only |
+| WP3 secure booking | Production | Exact required `Veg` / `Non-veg` with no default; same member/admin validation; origin/role/race/duplicate/cancel controls; dietary output remains off | Capacity and any non-empty `BookingFields` rules remain committee decisions |
+| WP4 outputs and Hall of Fame | Production | Deployed signed idempotent adapter, bounded retry/recovery, D1 migrations, 54-row Hall of Fame state, two synced booking projections and a successful scheduled reconciliation | Retain the append-only sheet audit trail and investigate future alerts under the documented procedure |
+| WP5 operations and handover | Production | Protected source dashboard, approved-link allowlist, role/non-disclosure tests and operational guidance | Add only separately approved business links/content; unresolved ownership remains explicit |
 
 ## Reviewed change groups
 
@@ -50,9 +59,9 @@ Clean candidate: `%LOCALAPPDATA%\Temp\jgs-release-final-2026-08-21-v3`; 123 sour
 | Clean install | `npm ci` | 233 packages installed, 234 audited, 0 vulnerabilities, no unsupported-package warning |
 | WP3/auth focus | `node --test tests/wp3-booking-security.test.js tests/operational-admin-auth.test.js tests/event-policy.test.js` | 29 passed, 0 failed |
 | WP4/WP5/non-disclosure focus | Eight named WP4/WP5/auth test files via `node --test` | 48 passed, 0 failed |
-| Full release check | `npm run check` | ESLint passed; 79 passed, 0 failed; Vite 8.2.2 build passed; Wrangler 4.125.0 Functions compilation passed |
+| Full release check | `npm run check` | ESLint passed; 80 passed, 0 failed; Vite 8.2.2 build passed; Wrangler 4.125.0 Functions compilation passed |
 | Repeatability | `npm run check` with an existing generated `.tmp/pages-functions` | Passed after adding generated-output ESLint ignores |
-| Production bundle | Vite output | 54 modules; HTML 1.00 kB, CSS 37.20 kB, JS 362.44 kB; no unresolved asset warning |
+| Production bundle | Vite output | 54 modules; HTML 1.01 kB, CSS 37.20 kB, JS 362.44 kB; no unresolved asset warning |
 | Functions routing | `.tmp/pages-functions/_routes.json` | Version 1; includes `/api/*`; non-empty Worker bundle |
 | Empty local D1 | `wrangler d1 migrations apply ... --local --persist-to .tmp/d1-final` | `0001`, `0002`, `0003` passed: 19 + 5 + 7 commands |
 | API smoke | `npm run verify:api` with isolated local settings | 21 checks passed; auth/roles, exact dietary choice, booking/cancel/duplicates, admin correction, operations/status and Hall of Fame JSON |
@@ -62,33 +71,56 @@ Clean candidate: `%LOCALAPPDATA%\Temp\jgs-release-final-2026-08-21-v3`; 123 sour
 | Audit | `npm audit --omit=dev --json`; `npm audit --json` | 0 production and 0 full-tree vulnerabilities |
 | Patch hygiene | `git diff --check` | Passed |
 | Proposed implementation scan | 60 staged files; high-confidence credential/PII/private-URL and forbidden-filename rules | 0 findings after replacing private-looking test fixtures with `example.invalid`/example URLs |
-| Deployment packaging | `python scripts/deploy_pages.py` | Independent clean install/check/build/Functions validation passed; dry run exited 0; no external deployment attempted |
+| Deployment packaging | `python scripts/deploy_pages.py` | Independent clean install/check/build/Functions validation passed; production helper now verifies the public Pages alias rather than a provider-protected immutable deployment URL |
 
-Meaningful warning: automated browser key injection was not reliable in the final browser reconnect. The application exposes native labelled buttons, checkbox and required radios, focus targets were verified, and the earlier complete local member/admin journeys passed; real keyboard/mobile acceptance therefore remains an explicit Preview UAT gate rather than a waived check.
+The complete check was repeated from a fresh clean archive of `main` before the
+custom-domain production deployment. The deployed runtime change is `21bfd6b`;
+`bdac599` adds only the production-verification helper correction.
 
-## External decision pack
+## Production verification
 
-| Action | Owner/authority | Required proof before advancing |
+| Area | Masked evidence | Result |
 | --- | --- | --- |
-| Authorize and deploy the bound Google Apps Script adapter | Verified Google workbook/script owner, operationally Chetan | Private properties entered outside chat; signed test accepted; one idempotent test row and Sync Log outcome; retry/conflict behavior; dietary absent |
-| Read back and enter masked Cloudflare configuration | Priyesh or authorized Cloudflare account owner | Exact account/project/Worker/D1/bindings confirmed; secrets remain masked/provider-held; `BOOKING_SYNC_INCLUDE_DIETARY` absent or false; origins exact |
-| Back up and migrate remote D1 | Authorized Cloudflare/D1 owner | Pre-change export stored outside the repo with checksum and commit SHA; migrations `0001`–`0003` recorded; aggregate schema/count invariants; tested rollback route |
-| Deploy Worker and Pages Preview from the project root | Release operator after gate approval | Fixture/Hall of Fame runs healthy; `/api/auth/session` and `/api/leaderboards` return expected API status plus JSON, never SPA HTML; Functions/logs/bindings healthy |
-| Resolve booking-critical business inputs | Chetan/committee owner | Exact registration/cancellation windows, capacity behavior and any non-empty `BookingFields` contract recorded; unresolved fixtures remain fail-closed |
-| Real Preview UAT | Priyesh, Chetan and one authorized real member identity | Admin/member role isolation; book/refresh/duplicate/cancel; exact dietary choice; attendee correction; private balance; mobile and keyboard; no unintended PII disclosure |
-| Approve and deploy Production | Priyesh after all Preview evidence | Fresh backup; reviewed commit; explicit production switch; API/browser/log/D1/sheet invariants repeated; current production content/accounts/bookings preserved |
-| DNS/domain or Drive sharing changes, if required | Domain owner or verified Google sharing owner | Separate exact target/scope approval and post-change verification; none is assumed by this pack |
+| Recovery | Pre-change production D1 SQL export stored outside the repository; 1,816,987 bytes; SHA-256 `ed9cff690d55e1c221a0191db208a39d6bf04e139f6e3514b6dc361871db1f1d`; tied to reviewed commit `50b9ad32befc6d37edafcf5eb11570acee980e37` | SQL integrity passed; rollback artifact preserved |
+| D1 schema | Required tables and migration ledger queried remotely | 11 required tables; migrations `0001`–`0003`; no pending migration |
+| D1 invariants | Aggregate-only remote queries | 2 active accounts (1 sole shared administrator, 1 ordinary member); 2 registered bookings; 0 duplicate active bookings; 0 invalid dietary values; 12 fixtures; 54 active Hall of Fame rows |
+| Fixture reconciliation | Latest successful production Worker summary | 12 source / 12 expected / 12 accounted; 1 bookable, 2 temporarily unavailable, 9 historical, 0 withheld |
+| Apps Script | Bound booking adapter promoted to active Version 2; only the required Script Property key names were read back | HMAC envelope, idempotent upsert and reconciliation code active; Version 1 retained as rollback |
+| Cloudflare Worker | Deployed from runtime commit `21bfd6b`; cron restored to minute 7 hourly after a controlled replay | Fixture, leaderboard and booking-output runs healthy; exact expected secret names present; values never disclosed |
+| Cloudflare Pages | Clean production build deployed from `main` at `bdac599` with Functions included | Custom origin serves the release and accepts same-origin API writes; provider Pages alias remains a working read/API alias but rejects authentication-origin writes |
+| Provider configuration | Fresh post-deploy Pages configuration read-back | `APP_ORIGIN` persists as the custom HTTPS origin; one D1 binding; five production variables; dietary-output flag absent; expected secret names retained |
+| API routing | Custom-domain root and representative auth/public APIs | Release assets served; auth API returns JSON rather than SPA HTML; Hall of Fame API returns JSON; origin gate behaves as configured |
+| Signed booking output | Shared administrator delivery plus controlled scheduled replay | 2 sent, 0 failed, 0 pending; both genuine registered bookings are projected as synced canonical rows, with dietary output omitted by policy |
+| Secret alignment and sheet audit | User-approved rotation across Apps Script, Pages and Worker; aggregate-only `Sync Log` inspection | Eight historical unauthorised attempts exposed the prior Worker mismatch; the append-only failures were retained, the latest entry succeeded, and no failure followed that success |
+| Administrator UAT | Real shared-admin session on the custom origin | Administrator dashboard and delivery retry passed |
+| Member UAT | Real ordinary-member session on the custom origin, including narrow mobile viewport | Admin route denied; admin navigation absent; member portal passed; required two-choice dietary form has no default and remains disabled until selection; existing booking shown with cancellation closed; no horizontal overflow; no member mutation |
+| Recurring booking audit | Controlled scheduled Worker replay, followed through trigger propagation | Booking output succeeded with 2 delivered, 0 failed and 0 alerts; subsequent propagation cycles were also healthy; the temporary cadence stopped after the configured hourly trigger took effect |
+
+## Remaining decisions
+
+| Decision | Owner/authority | Safe current behaviour |
+| --- | --- | --- |
+| Exact future fixture registration/cancellation windows | Chetan or committee owner | Missing or invalid values fail closed; no dates are invented |
+| Capacity policy: unlimited, hard cap or waitlist | Committee | No unapproved capacity rule is enforced |
+| Any non-empty `BookingFields` contract | Committee plus implementation review | Only the reviewed basic booking fields are accepted |
+| Member-roster expansion and personal finance links | Priyesh/Chetan with member authority | No fabricated accounts, mappings or private URLs are introduced |
+| Public legal/contact, donation, sponsorship and additional media | Appropriate committee/content owner | Honest unavailable states remain until approved material exists |
+| DNS/domain or Drive sharing changes, if later required | Domain owner or verified Google sharing owner | No further sharing or DNS mutation is assumed by this release |
 
 Secrets must be entered through Google/Cloudflare provider controls and never pasted into chat, docs, logs or Git.
 
 ## Readiness score
 
-`8.8 / 10` against the charter:
+`9.8 / 10` against the charter for the verified production release:
 
 - security and data integrity: 2.0/2.0;
 - clean automated verification and packaging: 2.0/2.0;
-- WP4/WP5 operations and recovery: 1.8/2.0;
-- source evidence and committee handover: 1.8/2.0;
-- external deployment and real UAT proof: 1.2/2.0.
+- WP4/WP5 operations and recovery: 1.9/2.0;
+- source evidence and committee handover: 1.9/2.0;
+- external deployment and real UAT proof: 2.0/2.0.
 
-The bounded improvement pass removed all dependency advisories, upgraded the unsupported lint toolchain, made repeated checks ignore generated bundles, and removed private-looking test fixtures. The remaining 1.2-point gap is deliberately external and cannot be closed safely without Priyesh's approval and provider/committee participation.
+The bounded improvement pass removed all dependency advisories, upgraded the
+unsupported lint toolchain, made repeated checks ignore generated bundles, and
+removed private-looking test fixtures. The separate future business/content
+decisions above are intentionally unresolved rather than guessed; they do not
+block the verified deployed release.
