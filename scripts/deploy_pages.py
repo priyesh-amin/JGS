@@ -101,9 +101,18 @@ def response(url: str):
 
 
 def verify_api(deployment_url: str) -> None:
-    for path in ("/api/auth/session", "/api/leaderboards"):
+    expected_statuses = {
+        "/api/auth/session": {200, 401},
+        "/api/leaderboards": {200},
+    }
+    for path, allowed_statuses in expected_statuses.items():
         result = response(f"{deployment_url.rstrip('/')}{path}")
         body = result.read(200_000)
+        if result.status not in allowed_statuses:
+            raise RuntimeError(
+                f"Pages Functions verification failed for {path}: "
+                f"unexpected HTTP {result.status}."
+            )
         content_type = result.headers.get("Content-Type", "").lower()
         if "application/json" not in content_type:
             raise RuntimeError(
