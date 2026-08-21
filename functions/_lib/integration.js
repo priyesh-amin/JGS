@@ -91,6 +91,20 @@ export async function deliverPendingOutbox(context, { limit = 25, now = new Date
   return { configured: true, delivered, failed };
 }
 
+export async function retryPendingOutbox(
+  context,
+  { limit = 25, now = new Date() } = {},
+) {
+  const nowIso = now.toISOString();
+  await context.env.DB.prepare(
+    `UPDATE integration_outbox
+     SET next_attempt_at = NULL, updated_at = ?
+     WHERE status = 'failed'
+       AND (lease_token IS NULL OR lease_expires_at <= ?)`,
+  ).bind(nowIso, nowIso).run();
+  return deliverPendingOutbox(context, { limit, now });
+}
+
 export async function auditBookingOutput(context, now = new Date()) {
   const token = context.env.BOOKING_SYNC_TOKEN;
   if (!context.env.BOOKING_SYNC_WEBHOOK_URL || !token) return { configured: false, audited: 0 };

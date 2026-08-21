@@ -1,6 +1,6 @@
 ﻿import assert from 'node:assert/strict';
 import test from 'node:test';
-import { auditBookingOutput, deliverPendingOutbox, queueBookingReconciliation, recordBookingDeliveryStatus } from '../functions/_lib/integration.js';
+import { auditBookingOutput, deliverPendingOutbox, queueBookingReconciliation, recordBookingDeliveryStatus, retryPendingOutbox } from '../functions/_lib/integration.js';
 
 function mockContext(fetchImplementation) {
   const updates = [];
@@ -40,6 +40,21 @@ test('a 2xx adapter rejection releases the lease and remains retryable', async (
     assert.deepEqual(result, { configured: true, delivered: 0, failed: 1 });
     assert.match(mock.updates[1].sql, /status = 'failed'/);
     assert.equal(mock.updates[1].values[1], 'Sheet write failed');
+  } finally { restore(); }
+});
+
+test('an administrator retry clears backoff before claiming failed delivery', async () => {
+  const mock = mockContext(async () => new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+  const restore = mock.installFetch();
+  try {
+    const now = new Date('2026-01-01T00:00:00.000Z');
+    const result = await retryPendingOutbox(mock.context, { now });
+    assert.deepEqual(result, { configured: true, delivered: 1, failed: 0 });
+    assert.match(mock.updates[0].sql, /status = 'failed'/);
+    assert.match(mock.updates[0].sql, /next_attempt_at = NULL/);
+    assert.deepEqual(mock.updates[0].values, [now.toISOString(), now.toISOString()]);
+    assert.match(mock.updates[1].sql, /status = 'processing'/);
+    assert.match(mock.updates[2].sql, /status = 'sent'/);
   } finally { restore(); }
 });
 

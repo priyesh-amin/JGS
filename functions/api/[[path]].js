@@ -38,6 +38,7 @@ import {
 import {
   deliverPendingOutbox,
   integrationStatus,
+  retryPendingOutbox,
 } from '../_lib/integration.js';
 import { recordFailedSync } from '../_lib/sheet-sync.js';
 import { listLeaderboards } from '../_lib/leaderboard-reconciliation.js';
@@ -362,7 +363,7 @@ async function route(context) {
       }
       if (method !== 'POST') return methodNotAllowed(['GET', 'POST']);
       assertSameOrigin(context.request, context.env);
-      return json({ delivery: await deliverPendingOutbox(context) });
+      return json({ delivery: await retryPendingOutbox(context) });
     }
   }
 
