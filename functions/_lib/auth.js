@@ -57,6 +57,83 @@ function sessionCookie(token, request, maxAge) {
   return attributes.join('; ');
 }
 
+function userPayload(member, { sessionIdHash = null, authMethod = 'password' } = {}) {
+  const isOperationalAdmin = member.role === 'admin'
+    && member.username === OPERATIONAL_ADMIN_USERNAME;
+  const user = {
+    id: member.id,
+    email: member.username ? null : member.email,
+    username: member.username || null,
+    displayName: member.display_name,
+    role: member.role,
+    mustChangePassword: Boolean(member.must_change_password)
+      && authMethod !== 'google'
+      && !isOperationalAdmin,
+    financeUrl: member.finance_url || null,
+    canRecoverOperationalAdmin: false,
+    signedInWith: authMethod,
+    authenticationMethods: {
+      google: Boolean(member.google_subject),
+      password: member.password_login_enabled !== 0,
+    },
+  };
+  Object.defineProperty(user, 'sessionIdHash', {
+    value: sessionIdHash,
+    enumerable: false,
+  });
+  return user;
+}
+
+export async function issueSession(
+  context,
+  member,
+  { authMethod = 'password', throttleKey = null, now = new Date() } = {},
+) {
+  const token = randomToken();
+  const tokenHash = await sha256(token);
+  const createdAt = now.toISOString();
+  const expiresAt = new Date(
+    now.getTime() + SESSION_DAYS * 24 * 60 * 60 * 1000,
+  ).toISOString();
+  const statements = [
+    context.env.DB.prepare(
+      `INSERT INTO sessions
+         (id_hash, member_id, created_at, expires_at, last_seen_at, auth_method)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    ).bind(
+      tokenHash,
+      member.id,
+      createdAt,
+      expiresAt,
+      createdAt,
+      authMethod,
+    ),
+    context.env.DB.prepare(
+      'DELETE FROM sessions WHERE expires_at <= ?',
+    ).bind(createdAt),
+  ];
+  if (throttleKey) {
+    statements.splice(1, 0, context.env.DB.prepare(
+      'DELETE FROM login_throttles WHERE throttle_key = ?',
+    ).bind(throttleKey));
+  }
+  await context.env.DB.batch(statements);
+
+  const user = userPayload(member, { sessionIdHash: tokenHash, authMethod });
+  user.canRecoverOperationalAdmin = canRecoverOperationalAdmin(
+    context.env,
+    member,
+  );
+  return {
+    user,
+    cookie: sessionCookie(
+      token,
+      context.request,
+      SESSION_DAYS * 24 * 60 * 60,
+    ),
+  };
+}
+
 export async function currentUser(context) {
   const token = parseCookies(context.request)[SESSION_COOKIE];
   if (!token) return null;
@@ -66,7 +143,8 @@ export async function currentUser(context) {
   const user = await context.env.DB.prepare(
     `SELECT
        m.id, m.email, m.username, m.display_name, m.role, m.status,
-       m.must_change_password, m.finance_url,
+       m.must_change_password, m.finance_url, m.google_subject,
+       m.password_login_enabled, s.auth_method,
        s.id_hash AS session_id_hash, s.expires_at
      FROM sessions s
      JOIN members m ON m.id = s.member_id
@@ -81,18 +159,15 @@ export async function currentUser(context) {
     ).bind(now, tokenHash).run(),
   );
 
-  return {
-    id: user.id,
-    email: user.username ? null : user.email,
-    username: user.username || null,
-    displayName: user.display_name,
-    role: user.role,
-    mustChangePassword: Boolean(user.must_change_password)
-      && !(user.role === 'admin' && user.username === OPERATIONAL_ADMIN_USERNAME),
-    financeUrl: user.finance_url || null,
-    canRecoverOperationalAdmin: canRecoverOperationalAdmin(context.env, user),
+  const result = userPayload(user, {
     sessionIdHash: user.session_id_hash,
-  };
+    authMethod: user.auth_method || 'password',
+  });
+  result.canRecoverOperationalAdmin = canRecoverOperationalAdmin(
+    context.env,
+    user,
+  );
+  return result;
 }
 
 export async function requireUser(context, { allowPasswordChange = false } = {}) {
@@ -204,11 +279,13 @@ export async function login(context, identifierValue, password) {
   const lookup = identifier.kind === 'email'
     ? `SELECT id, email, username, display_name, role, status,
               must_change_password, finance_url, password_hash,
-              password_salt, password_iterations
+              password_salt, password_iterations, google_subject,
+              password_login_enabled
        FROM members WHERE email = ? AND username IS NULL`
     : `SELECT id, email, username, display_name, role, status,
               must_change_password, finance_url, password_hash,
-              password_salt, password_iterations
+              password_salt, password_iterations, google_subject,
+              password_login_enabled
        FROM members WHERE username = ?`;
   const member = await context.env.DB.prepare(lookup)
     .bind(identifier.value)
@@ -220,6 +297,7 @@ export async function login(context, identifierValue, password) {
   );
   const valid = Boolean(member)
     && member.status === 'active'
+    && member.password_login_enabled !== 0
     && passwordMatches;
 
   if (!valid) {
@@ -231,48 +309,11 @@ export async function login(context, identifierValue, password) {
     );
   }
 
-  const token = randomToken();
-  const tokenHash = await sha256(token);
-  const createdAt = now.toISOString();
-  const expiresAt = new Date(
-    now.getTime() + SESSION_DAYS * 24 * 60 * 60 * 1000,
-  ).toISOString();
-
-  await context.env.DB.batch([
-    context.env.DB.prepare(
-      `INSERT INTO sessions
-         (id_hash, member_id, created_at, expires_at, last_seen_at)
-       VALUES (?, ?, ?, ?, ?)`,
-    ).bind(tokenHash, member.id, createdAt, expiresAt, createdAt),
-    context.env.DB.prepare(
-      'DELETE FROM login_throttles WHERE throttle_key = ?',
-    ).bind(key),
-    context.env.DB.prepare(
-      'DELETE FROM sessions WHERE expires_at <= ?',
-    ).bind(createdAt),
-  ]);
-
-  return {
-    user: {
-      id: member.id,
-      email: member.username ? null : member.email,
-      username: member.username || null,
-      displayName: member.display_name,
-      role: member.role,
-      mustChangePassword: Boolean(member.must_change_password)
-        && !(member.role === 'admin' && member.username === OPERATIONAL_ADMIN_USERNAME),
-      financeUrl: member.finance_url || null,
-      canRecoverOperationalAdmin: canRecoverOperationalAdmin(
-        context.env,
-        member,
-      ),
-    },
-    cookie: sessionCookie(
-      token,
-      context.request,
-      SESSION_DAYS * 24 * 60 * 60,
-    ),
-  };
+  return issueSession(context, member, {
+    authMethod: 'password',
+    throttleKey: key,
+    now,
+  });
 }
 
 export async function logout(context) {
@@ -292,7 +333,10 @@ export async function changePassword(context, currentPassword, newPassword) {
     `SELECT password_hash, password_salt, password_iterations
      FROM members WHERE id = ?`,
   ).bind(user.id).first();
-  if (!await verifyPassword(String(currentPassword || ''), row)) {
+  if (
+    user.signedInWith !== 'google'
+    && !await verifyPassword(String(currentPassword || ''), row)
+  ) {
     throw new AppError(
       401,
       'invalid_current_password',
@@ -306,7 +350,8 @@ export async function changePassword(context, currentPassword, newPassword) {
     context.env.DB.prepare(
       `UPDATE members
        SET password_hash = ?, password_salt = ?, password_iterations = ?,
-           must_change_password = 0, updated_at = ?
+           must_change_password = 0, password_login_enabled = 1,
+           updated_at = ?
        WHERE id = ?`,
     ).bind(next.hash, next.salt, next.iterations, now, user.id),
     context.env.DB.prepare(

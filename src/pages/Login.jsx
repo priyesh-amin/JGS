@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/useAuth';
 import MainLayout from '../layouts/MainLayout';
 import { safeInternalPath } from '../lib/navigation';
+import GoogleSignInButton from '../components/GoogleSignInButton';
 
 export default function Login() {
     const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [submitting, setSubmitting] = useState(false);
-    const { login } = useAuth();
+    const { login, googleLogin } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -34,6 +35,22 @@ export default function Login() {
         }
     };
 
+    const handleGoogleCredential = async (credential) => {
+        setError('');
+        setSubmitting(true);
+        try {
+            const user = await googleLogin(credential);
+            navigate(user.mustChangePassword ? '/account/security' : from, {
+                replace: true,
+                state: user.mustChangePassword ? { from: location.state?.from } : undefined,
+            });
+        } catch (loginError) {
+            setError(loginError.message || 'Google sign-in failed. Please try again.');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     return (
         <MainLayout>
             <div className="min-h-[60vh] flex items-center justify-center bg-surface-light px-4 py-12 sm:px-6 lg:px-8">
@@ -46,7 +63,20 @@ export default function Login() {
                         </p>
                     </div>
 
-                    <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+                    <div className="mt-8 space-y-5">
+                        <GoogleSignInButton
+                            onCredential={handleGoogleCredential}
+                            onError={setError}
+                            disabled={submitting}
+                        />
+                        <div className="flex items-center gap-3" aria-hidden="true">
+                            <span className="h-px flex-1 bg-gray-200" />
+                            <span className="text-xs font-bold uppercase tracking-wider text-gray-500">or use a password</span>
+                            <span className="h-px flex-1 bg-gray-200" />
+                        </div>
+                    </div>
+
+                    <form className="space-y-6" onSubmit={handleSubmit}>
                         <div className="space-y-4">
                             <div>
                                 <label htmlFor="identifier" className="mb-2 block text-sm font-bold text-midnight-navy">
@@ -79,6 +109,11 @@ export default function Login() {
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                 />
+                                <div className="mt-2 text-right">
+                                    <Link to="/forgot-password" className="text-sm font-bold text-jaguar-green underline">
+                                        Forgot password?
+                                    </Link>
+                                </div>
                             </div>
                         </div>
 

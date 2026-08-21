@@ -10,6 +10,11 @@
   setupOperationalAdmin,
 } from '../_lib/auth.js';
 import {
+  googleAuthConfig,
+  googleLogin,
+  linkGoogleAccount,
+} from '../_lib/google-auth.js';
+import {
   confirmedAttendees,
   correctBooking,
   createMember,
@@ -46,6 +51,10 @@ import {
   reconcileFixtureSheet,
 } from '../_lib/fixture-reconciliation.js';
 import { operationsDashboard } from '../_lib/operations-dashboard.js';
+import {
+  completePasswordReset,
+  requestPasswordReset,
+} from '../_lib/password-reset.js';
 
 function pathParts(request) {
   return new URL(request.url).pathname
@@ -102,6 +111,50 @@ async function route(context) {
   }
 
   if (parts[0] === 'auth') {
+    if (parts[1] === 'google' && parts[2] === 'config') {
+      if (method !== 'GET') return methodNotAllowed(['GET']);
+      const result = googleAuthConfig(context);
+      return json(
+        result.config,
+        200,
+        result.cookie ? { 'Set-Cookie': result.cookie } : {},
+      );
+    }
+    if (parts[1] === 'google' && parts[2] === 'link') {
+      if (method !== 'POST') return methodNotAllowed(['POST']);
+      assertSameOrigin(context.request, context.env);
+      const input = await readJson(context.request);
+      return json({
+        user: await linkGoogleAccount(context, input.credential),
+      });
+    }
+    if (parts[1] === 'google') {
+      if (method !== 'POST') return methodNotAllowed(['POST']);
+      assertSameOrigin(context.request, context.env);
+      const input = await readJson(context.request);
+      const result = await googleLogin(context, input.credential);
+      return json(
+        { user: result.user },
+        200,
+        { 'Set-Cookie': result.cookie },
+      );
+    }
+    if (parts[1] === 'forgot-password') {
+      if (method !== 'POST') return methodNotAllowed(['POST']);
+      assertSameOrigin(context.request, context.env);
+      const input = await readJson(context.request);
+      return json(await requestPasswordReset(context, input.email), 202);
+    }
+    if (parts[1] === 'reset-password') {
+      if (method !== 'POST') return methodNotAllowed(['POST']);
+      assertSameOrigin(context.request, context.env);
+      const input = await readJson(context.request);
+      return json(await completePasswordReset(
+        context,
+        input.token,
+        input.newPassword,
+      ));
+    }
     if (parts[1] === 'login') {
       if (method !== 'POST') return methodNotAllowed(['POST']);
       assertSameOrigin(context.request, context.env);

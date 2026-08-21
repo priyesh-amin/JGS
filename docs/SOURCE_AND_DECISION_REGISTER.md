@@ -23,7 +23,7 @@ This register is the evidence-first companion to the [Project delivery and orche
 | `JGS Booking Management` -> `Sync Log` | Approved WP4 operational delivery log | Integration run outcomes append to sheet; failures must not delete valid D1 or sheet rows | Same deployed booking-output adapter | 2026-08-21: eight historical unauthorised attempts retained, followed by successful user-approved secret alignment and scheduled reconciliation; no failure followed the latest success |
 | `JGS Booking Management` -> `README` / `Event Config` | Committee operating notes and workbook context | Reference/projection only; fixture authority remains `DB_Fixtures` | Connected Drive workbook | 2026-07-29: both tabs present; existing notes already state committee-only access and stable IDs |
 | Legacy Google Form responses and `Live_Entry_List` | Historical/legacy operational evidence only | Not an input to new canonical booking state | Connected Drive; do not wire into WP3/WP4 booking writes | 2026-07-29: named sources inspected read-only |
-| `Players_Specific_URLs` -> `Sheet1` | Restricted member finance-link directory for the WP5 dashboard | Dashboard information source approved; authority over D1 `finance_url` mappings is not yet assigned | Connected Drive workbook; admin-only link/configuration, never public or embedded | 2026-08-21: protected dashboard treatment implemented locally; authority remains unresolved |
+| `Players_Specific_URLs` -> `Sheet1` | Authorised member name/email roster and restricted finance-link directory | `Member` + `E-mail` are approved for one-way account provisioning; authority over D1 `finance_url` mappings remains unassigned | Connected Drive workbook; rows and links remain restricted and never public or embedded | 2026-08-21: exactly 56 unique valid emails reconfirmed; Priyesh explicitly authorised creating those accounts |
 | Other member-portal operational sheets | WP5 dashboard/guide category | Authority not yet assigned | Exact approved sources still to be inventoried and confirmed | Unresolved |
 
 ## Account and role model
@@ -32,7 +32,7 @@ This register is the evidence-first companion to the [Project delivery and orche
 | --- | --- | --- |
 | Priyesh personal account | Ordinary member identity for booking acceptance testing; not a website administrator | Active member; existing identity/password preserved and prior sessions revoked |
 | Shared operational administrator (`admin`) | Sole website administrator for routine committee administration | Active; password remains private/provider-safe |
-| Members | Individual personal booking identities; may manage only their own booking | Current ordinary-member identity preserved and accepted in production; roster expansion/onboarding remains separately authorised |
+| Members | Individual personal booking identities; may manage only their own booking | Existing identity preserved; 56-row email roster explicitly authorised for Google/reset-email onboarding on 2026-08-21 |
 | Chetan Patel | Operational spreadsheet maintainer and intended shared-admin user | A single consistent contact email exists in approved project/Drive evidence; Google account ownership must still be confirmed before editor sharing |
 
 ## Confirmed decisions
@@ -47,6 +47,7 @@ This register is the evidence-first companion to the [Project delivery and orche
 - Priyesh explicitly designated `https://jaguargolfsociety.siteproductions.co.uk/` as the canonical production and authentication origin on 2026-08-21. The attached `pages.dev` hostname remains a provider alias for public/read API access and is intentionally rejected by the write-origin gate.
 - WP5 delivers an admin-only source dashboard and plain-English operations guide with source ownership, approved server-supplied links, sync/error meaning, and a source -> sync -> website -> outputs flow.
 - `Players_Specific_URLs` is an approved WP5 dashboard-linked information source, but its link and contents are restricted to authenticated administrators; its D1 mapping authority remains unresolved.
+- Priyesh explicitly authorised all 56 unique `Players_Specific_URLs` member emails as accounts on 2026-08-21. Only names and emails may provision D1 accounts; passwords and reset tokens remain hashed in D1 and never belong in Sheets. Google Sign-In is primary, with verified one-time reset email as the fallback.
 
 ## Unresolved business and external-authority gates
 
@@ -55,9 +56,9 @@ This register is the evidence-first companion to the [Project delivery and orche
 | Exact future or missing fixture registration and cancellation timestamps | Chetan or committee owner | Booking-critical business times must never be invented |
 | Capacity behavior: unlimited, hard cap, or waitlist | Committee decision | Current importer does not enforce `Capacity` |
 | Non-empty `BookingFields` contract | Committee plus implementation review | Current UI/server supports only the approved basic fields; arbitrary business schema is not accepted |
-| Production member-roster expansion and onboarding | Priyesh/Chetan with member authority | No fake production members or bookings; the existing ordinary member completed non-mutating acceptance |
+| Google OAuth client and Apps Script mail permission activation | Google project/script owner | A Web client ID and new `MailApp` scope require provider-owner interaction before the approved roster can be safely activated |
 | Chetan editor sharing | Verified Google account owner plus Drive sharing authority | The observed contact email is consistent, but Google identity ownership and permission remain an external gate |
-| `Players_Specific_URLs` authority and owner | Priyesh/Chetan | Structure is verified, but evidence does not establish whether it drives D1 `finance_url` values or is reference-only; stable identity matching is also unapproved |
+| `Players_Specific_URLs` finance-link authority and owner | Priyesh/Chetan | Name/email account provisioning is approved; evidence still does not establish whether `Finance Sheet ID` may drive D1 `finance_url` values |
 | Member-portal sheet inventory and designated authority | Priyesh/Chetan | Exact approved sources are not yet established |
 | Public constitution, privacy notice and contact route | Committee/legal content owner | No approved text or public contact endpoint is available; the release candidate shows an honest unavailable/committee state |
 | Donation provider and current sponsorship availability | Committee/finance owner | No approved provider, payment destination, contact action or current package confirmation may be invented |

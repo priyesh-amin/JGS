@@ -19,6 +19,7 @@
     "check": "npm run lint && npm run test && npm run build && npm run build:functions"
   },
   "dependencies": {
+    "jose": "^6.2.9",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "7.18.2"

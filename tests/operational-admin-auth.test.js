@@ -154,6 +154,16 @@ test('unknown username and wrong password have the same safe failure', async () 
   assert.equal(missingError.message, wrongError.message);
 });
 
+test('a roster placeholder password cannot be used until the member sets one', async () => {
+  const member = await memberRow({ password_login_enabled: 0 });
+  const mock = authContext({ member });
+  await assert.rejects(
+    login(mock.context, member.email, TEST_PASSWORD),
+    (error) => error.status === 401 && error.code === 'invalid_credentials',
+  );
+  assert.equal(mock.batchCount, 0);
+});
+
 test('username format is constrained and deterministic', () => {
   assert.deepEqual(normaliseLoginIdentifier(' ADMIN '), {
     kind: 'username',

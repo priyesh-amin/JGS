@@ -12,6 +12,12 @@ password.
 atomic historical Hall of Fame generation tables. It does not backfill
 bookings, dietary choices or leaderboard rows.
 
+`0004_member_identity_and_password_recovery.sql` adds Google subject linking,
+an explicit password-login switch and account-source provenance. It also adds
+hashed one-time reset-token, reset-throttle and authentication-audit tables.
+Existing accounts retain password login; the migration does not create,
+disable or relink any account.
+
 Production procedure:
 
 1. Export the target D1 database.

@@ -211,7 +211,7 @@ function MembersAdmin({ members, onComplete }) {
         id="manage-members-heading"
         eyebrow="Individual access"
         title="Manage members"
-        copy="New accounts are invitation-only. Members can keep their initial password."
+        copy="Roster accounts can use Google Sign-In or set a password from a one-time email link. Passwords are never stored in Sheets."
       />
       <CreateMemberForm onComplete={onComplete} />
       <div className="mt-6 space-y-3">
@@ -303,7 +303,12 @@ function MemberEditor({ member, onComplete }) {
           <h3 className="font-serif text-lg font-bold text-midnight-navy">{member.displayName}</h3>
           <p className="text-sm text-gray-600">{member.username ? `Username: ${member.username}` : member.email}</p>
         </div>
-        {member.mustChangePassword && <span className="w-fit rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">Password change required</span>}
+        <div className="flex flex-wrap gap-2">
+          {member.accountSource === 'players_sheet' && <span className="w-fit rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-900">Roster account</span>}
+          {member.authenticationMethods?.google && <span className="w-fit rounded-full bg-green-50 px-3 py-1 text-xs font-bold text-jaguar-green">Google linked</span>}
+          {member.authenticationMethods?.password && <span className="w-fit rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-midnight-navy">Password ready</span>}
+          {member.mustChangePassword && <span className="w-fit rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">Password change required</span>}
+        </div>
       </div>
       {member.username ? (
         <p className="mt-4 rounded-lg bg-surface-light p-3 text-sm text-gray-600">This fixed operational account is managed only through the private recovery control.</p>

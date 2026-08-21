@@ -17,6 +17,8 @@ import Admin from './pages/Admin';
 import MembersPortal from './pages/MembersPortal';
 import EventDetails from './pages/EventDetails';
 import AccountSecurity from './pages/AccountSecurity';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 function App() {
   return (
@@ -26,6 +28,8 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route
             path="/admin"
             element={

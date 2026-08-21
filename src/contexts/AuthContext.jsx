@@ -38,6 +38,18 @@ export function AuthProvider({ children }) {
     return result.user;
   }, []);
 
+  const googleLogin = useCallback(async (credential) => {
+    const result = await api.post('/api/auth/google', { credential });
+    setUser(result.user);
+    return result.user;
+  }, []);
+
+  const linkGoogle = useCallback(async (credential) => {
+    const result = await api.post('/api/auth/google/link', { credential });
+    setUser(result.user);
+    return result.user;
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await api.post('/api/auth/logout');
@@ -61,10 +73,21 @@ export function AuthProvider({ children }) {
     isAuthenticated: Boolean(user),
     isAdmin: user?.role === 'admin',
     login,
+    googleLogin,
+    linkGoogle,
     logout,
     changePassword,
     refreshSession,
-  }), [user, loading, login, logout, changePassword, refreshSession]);
+  }), [
+    user,
+    loading,
+    login,
+    googleLogin,
+    linkGoogle,
+    logout,
+    changePassword,
+    refreshSession,
+  ]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

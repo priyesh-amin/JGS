@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
@@ -103,16 +104,22 @@ def response(url: str):
 def verify_api(deployment_url: str) -> None:
     expected_statuses = {
         "/api/auth/session": {200, 401},
+        "/api/auth/google/config": {200},
         "/api/leaderboards": {200},
     }
     for path, allowed_statuses in expected_statuses.items():
-        result = response(f"{deployment_url.rstrip('/')}{path}")
+        for attempt in range(6):
+            result = response(f"{deployment_url.rstrip('/')}{path}")
+            if result.status in allowed_statuses:
+                break
+            if result.status not in {403, 404, 429, 500, 502, 503, 504} or attempt == 5:
+                raise RuntimeError(
+                    f"Pages Functions verification failed for {path}: "
+                    f"unexpected HTTP {result.status}."
+                )
+            result.close()
+            time.sleep(3)
         body = result.read(200_000)
-        if result.status not in allowed_statuses:
-            raise RuntimeError(
-                f"Pages Functions verification failed for {path}: "
-                f"unexpected HTTP {result.status}."
-            )
         content_type = result.headers.get("Content-Type", "").lower()
         if "application/json" not in content_type:
             raise RuntimeError(

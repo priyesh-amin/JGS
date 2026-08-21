@@ -1,6 +1,7 @@
 ﻿const BOOKING_SHEET = 'Bookings';
 const SYNC_LOG_SHEET = 'Sync Log';
 const HEADER_ROW = 4;
+const PASSWORD_RESET_URL_PREFIX = 'https://jaguargolfsociety.siteproductions.co.uk/reset-password#token=';
 
 function doGet() {
   return jsonResponse_({
@@ -18,6 +19,11 @@ function doPost(e) {
     const envelope = JSON.parse(e && e.postData && e.postData.contents || '{}');
     payload = authenticateEnvelope_(envelope);
     validatePayload_(payload);
+
+    if (payload.eventType === 'password.reset') {
+      sendPasswordResetEmail_(payload);
+      return jsonResponse_({ ok: true });
+    }
 
     lock = LockService.getScriptLock();
     if (!lock.tryLock(30000)) {
@@ -52,17 +58,19 @@ function doPost(e) {
       row: result.row,
     });
   } catch (error) {
-    try {
-      const spreadsheet = configuredSpreadsheet_();
-      appendSyncLog_(
-        requiredSheet_(spreadsheet, SYNC_LOG_SHEET),
-        payload || {},
-        'Failed',
-        startedAt,
-        String(error && error.message || error).slice(0, 1000),
-      );
-    } catch (logError) {
-      console.error('Unable to append the failed sync log', logError);
+    if (!payload || payload.eventType !== 'password.reset') {
+      try {
+        const spreadsheet = configuredSpreadsheet_();
+        appendSyncLog_(
+          requiredSheet_(spreadsheet, SYNC_LOG_SHEET),
+          payload || {},
+          'Failed',
+          startedAt,
+          String(error && error.message || error).slice(0, 1000),
+        );
+      } catch (logError) {
+        console.error('Unable to append the failed sync log', logError);
+      }
     }
     return jsonResponse_({
       ok: false,
@@ -91,10 +99,17 @@ function authenticateEnvelope_(envelope) {
   const message = String(envelope.message || '');
   const signature = String(envelope.signature || '').toLowerCase();
   if (!Number.isInteger(timestamp) || Math.abs(Date.now() / 1000 - timestamp) > 300 || !nonce || nonce.length > 100 || !message || message.length > 20000) throw new Error('Invalid request envelope.');
-  const expectedSignature = Utilities.computeHmacSha256Signature(timestamp + '.' + nonce + '.' + message, expectedToken).map(function (value) {
+  const purpose = String(envelope.purpose || '');
+  if (purpose && purpose !== 'password_reset') throw new Error('Invalid request purpose.');
+  const signedMessage = (purpose ? purpose + '.' : '') + timestamp + '.' + nonce + '.' + message;
+  const expectedSignature = Utilities.computeHmacSha256Signature(signedMessage, expectedToken).map(function (value) {
     return ((value + 256) % 256).toString(16).padStart(2, '0');
   }).join('');
   if (!constantTimeEquals_(signature, expectedSignature)) throw new Error('Unauthorised booking update.');
+  const nonceCache = CacheService.getScriptCache();
+  const nonceKey = 'request-nonce:' + nonce;
+  if (nonceCache.get(nonceKey)) throw new Error('Replayed request envelope.');
+  nonceCache.put(nonceKey, '1', 600);
   return JSON.parse(message);
 }
 
@@ -105,6 +120,18 @@ function constantTimeEquals_(left, right) {
   return mismatch === 0;
 }
 function validatePayload_(payload) {
+  if (payload.eventType === 'password.reset') {
+    if (payload.schemaVersion !== 1) throw new Error('Unsupported reset schema version.');
+    const recipient = String(payload.recipient || '').trim();
+    const displayName = String(payload.displayName || '').trim();
+    const resetUrl = String(payload.resetUrl || '');
+    const expiresAt = new Date(payload.expiresAt || '');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient) || recipient.length > 254) throw new Error('Invalid reset recipient.');
+    if (!displayName || displayName.length > 120) throw new Error('Invalid reset display name.');
+    if (resetUrl.indexOf(PASSWORD_RESET_URL_PREFIX) !== 0 || !/^[A-Za-z0-9_-]{43,128}$/.test(resetUrl.slice(PASSWORD_RESET_URL_PREFIX.length))) throw new Error('Invalid reset URL.');
+    if (isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now() || expiresAt.getTime() > Date.now() + 65 * 60 * 1000) throw new Error('Invalid reset expiry.');
+    return;
+  }
   if (payload.schemaVersion !== 2) {
     throw new Error('Unsupported schema version.');
   }
@@ -133,6 +160,33 @@ function validatePayload_(payload) {
   if (!Number.isInteger(Number(payload.booking.version))) {
     throw new Error('A numeric booking version is required.');
   }
+}
+
+function sendPasswordResetEmail_(payload) {
+  const safeName = htmlEscape_(payload.displayName);
+  const safeUrl = htmlEscape_(payload.resetUrl);
+  const subject = 'Reset your Jaguar Golf Society password';
+  const body = 'Hello ' + payload.displayName + ',\n\nUse this one-time link within 60 minutes to reset your Jaguar Golf Society password:\n\n' + payload.resetUrl + '\n\nIf you did not request this, you can ignore this email.';
+  const htmlBody = '<p>Hello ' + safeName + ',</p>'
+    + '<p>Use this one-time link within 60 minutes to reset your Jaguar Golf Society password:</p>'
+    + '<p><a href="' + safeUrl + '">Reset my password</a></p>'
+    + '<p>If you did not request this, you can ignore this email.</p>';
+  MailApp.sendEmail({
+    to: payload.recipient,
+    subject: subject,
+    body: body,
+    htmlBody: htmlBody,
+    name: 'Jaguar Golf Society',
+  });
+}
+
+function htmlEscape_(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function upsertBooking_(sheet, payload) {

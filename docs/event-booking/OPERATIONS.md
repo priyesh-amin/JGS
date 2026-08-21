@@ -23,16 +23,20 @@ below in Preview before Production:
    configure its `SPREADSHEET_ID` and `BOOKING_SYNC_TOKEN` script properties,
    and supply the resulting `BOOKING_SYNC_WEBHOOK_URL` plus the same
    `BOOKING_SYNC_TOKEN` to Cloudflare Pages.
-9. Supply the authorised initial administrator email and approved member
-   roster. Create imported accounts disabled until committee verification.
-10. Confirm exact September publication, registration, and cancellation
+9. Configure a Google Web OAuth client for the exact canonical origin and set
+   its public client ID as `GOOGLE_CLIENT_ID`. Do not configure or store a
+   client secret.
+10. Supply the authorised initial administrator email and approved member
+   roster. Roster accounts start with password login disabled and become usable
+   through Google Sign-In or a verified one-time reset email.
+11. Confirm exact September publication, registration, and cancellation
    timestamps in `Europe/London`.
-11. Supply authorised HTTPS finance links for each applicable member.
-12. Supply approved administrator-only Google Sheets document URLs through
+12. Supply authorised HTTPS finance links for each applicable member.
+13. Supply approved administrator-only Google Sheets document URLs through
    `FIXTURES_WORKBOOK_URL`, `LEADERBOARDS_WORKBOOK_URL`,
    `MEMBER_BALANCES_WORKBOOK_URL`, `BOOKING_MANAGEMENT_WORKBOOK_URL`, and
    `MEMBER_FINANCE_LINKS_WORKBOOK_URL`. Missing links remain unavailable.
-13. Confirm `BOOKING_SYNC_INCLUDE_DIETARY` is absent or false. Dietary data is
+14. Confirm `BOOKING_SYNC_INCLUDE_DIETARY` is absent or false. Dietary data is
    not approved for the operational spreadsheet output.
 
 No production IDs, accounts, deadlines, or secrets belong in source control.
@@ -103,8 +107,9 @@ proves Pages Functions and `/api/*` routing are present. It does not deploy.
 After approval, export or back up the exact target D1 database, store the backup
 outside the repository, and record its checksum plus the reviewed commit SHA.
 Only then apply the reviewed migrations remotely. Migrations `0001` through
-`0003` create the secure booking model, account-security audit state, Hall of
-Fame snapshot, and leased booking-output fields. Verify the migration ledger and
+`0004` create the secure booking model, account-security audit state, Hall of
+Fame snapshot, leased booking-output fields, Google identity linking and
+one-time password recovery. Verify the migration ledger and
 table/column invariants immediately after applying them; do not print member
 rows.
 
@@ -119,6 +124,9 @@ python scripts/deploy_pages.py --deploy
 Confirm the Preview `DB` binding and `APP_ORIGIN` match the preview origin.
 Reject the preview if `/api/auth/session` or `/api/leaderboards` returns SPA
 HTML instead of the expected API status and JSON content type.
+
+See [Member authentication and roster operations](../AUTHENTICATION_AND_ROSTER.md)
+for the Google-client, reset-email and roster-import controls.
 
 ## Empty-environment bootstrap only
 

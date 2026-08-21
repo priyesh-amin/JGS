@@ -24,7 +24,8 @@ function assertGenericAccountMutationAllowed(member, actor, recoveryEmailValue) 
 export async function listMembers(db, actor, recoveryEmailValue) {
   const result = await db.prepare(
     `SELECT id, email, username, display_name, role, status, must_change_password,
-            finance_url, created_at, updated_at
+            finance_url, google_subject, password_login_enabled,
+            account_source, created_at, updated_at
      FROM members ORDER BY display_name COLLATE NOCASE`,
   ).all();
   return result.results
@@ -176,7 +177,8 @@ export async function resetMemberPassword(
     db.prepare(
       `UPDATE members
        SET password_hash = ?, password_salt = ?, password_iterations = ?,
-           must_change_password = 0, updated_at = ?
+           must_change_password = 0, password_login_enabled = 1,
+           updated_at = ?
        WHERE id = ? AND username IS NULL`,
     ).bind(
       password.hash,
@@ -476,6 +478,11 @@ function mapMember(row) {
     status: row.status,
     mustChangePassword: Boolean(row.must_change_password),
     financeUrl: row.finance_url || null,
+    authenticationMethods: {
+      google: Boolean(row.google_subject),
+      password: row.password_login_enabled !== 0,
+    },
+    accountSource: row.account_source || 'manual',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
