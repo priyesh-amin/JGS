@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "jgs-fixture-sync",
+  "main": "./workers/fixture-sync-worker.js",
+  "compatibility_date": "2026-08-21",
+  "triggers": {
+    "crons": ["7 * * * *"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "jgs-secure-booking",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "vars": {
+    "MASTER_FIXTURES_CSV_URL": "https://example.invalid/fixtures.csv",
+    "MASTER_LEADERBOARDS_CSV_URL": "https://example.invalid/leaderboards.csv",
+    "EXPECTED_FIXTURE_IDS": "season-opener-2026,may-monthly-2026,may-midweek-2026,june-monthly-2026,charity-day-2026,july-monthly-2026,july-midweek-2026,aug-monthly-2026,aug-midweek-2026,weekend-away-2026,sept-monthly-2026,season-finale-2026"
+  }
+}

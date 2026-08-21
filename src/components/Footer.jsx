@@ -22,17 +22,10 @@ export default function Footer() {
             </div>
           </div>
         </div>
-        <div className="flex gap-8 text-xs font-bold uppercase tracking-widest text-trophy-gold/80">
-          {/* TODO: Update links when requirements are defined */}
-          <Link to="#" className="hover:text-white transition-colors">
-            Constitution
-          </Link>
-          <Link to="#" className="hover:text-white transition-colors">
-            Privacy Policy
-          </Link>
-          <Link to="#" className="hover:text-white transition-colors">
-            Contact Us
-          </Link>
+        <div className="flex flex-wrap justify-center gap-5 text-xs font-bold uppercase tracking-widest text-trophy-gold/80">
+          <span title="Not yet published">Constitution: unavailable</span>
+          <span title="Not yet published">Privacy notice: unavailable</span>
+          <span title="Public contact details are awaiting verification">Contact: committee</span>
           {isAdmin && (
             <Link to="/admin" className="hover:text-white transition-colors text-charity-crimson">
               Admin

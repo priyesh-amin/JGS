@@ -2,13 +2,28 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
 import { api } from '../lib/api';
+import { useAuth } from '../contexts/useAuth';
 
 export default function EventDetails() {
   const { eventId } = useParams();
+  const { isAdmin } = useAuth();
   const [event, setEvent] = useState(null);
+  const [balance, setBalance] = useState(null);
+  const [balanceError, setBalanceError] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+
+  const loadSupplemental = useCallback(async () => {
+    const balanceResult = await api.get('/api/account/balance')
+      .then((result) => ({ result, error: '' }))
+      .catch((balanceLoadError) => ({
+        result: null,
+        error: balanceLoadError.message || 'Your balance is unavailable.',
+      }));
+    setBalance(balanceResult.result);
+    setBalanceError(balanceResult.error);
+  }, []);
 
   const loadEvent = useCallback(async () => {
     setLoading(true);
@@ -16,12 +31,13 @@ export default function EventDetails() {
     try {
       const result = await api.get(`/api/events/${encodeURIComponent(eventId)}`);
       setEvent(result.event);
+      await loadSupplemental();
     } catch (loadError) {
       setError(loadError.message || 'The event could not be loaded.');
     } finally {
       setLoading(false);
     }
-  }, [eventId]);
+  }, [eventId, loadSupplemental]);
 
   useEffect(() => {
     loadEvent();
@@ -62,11 +78,21 @@ export default function EventDetails() {
               <EventInformation event={event} />
               <BookingPanel
                 event={event}
+                isAdmin={isAdmin}
                 onChanged={(nextEvent, message) => {
                   setEvent(nextEvent);
                   setNotice(message);
+                  loadSupplemental().catch(() => {});
                   window.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
+              />
+            </div>
+            <div className="mt-6 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
+              <AttendancePanel attendeeCount={event.attendeeCount} />
+              <PaymentPanel
+                event={event}
+                balance={balance}
+                error={balanceError}
               />
             </div>
           </>
@@ -135,10 +161,12 @@ function EventInformation({ event }) {
   );
 }
 
-function BookingPanel({ event, onChanged }) {
+function BookingPanel({ event, isAdmin, onChanged }) {
   const active = event.booking?.status === 'registered';
   const [buggyRequired, setBuggyRequired] = useState(Boolean(event.booking?.buggyRequired));
-  const [dietaryRequirements, setDietaryRequirements] = useState(event.booking?.dietaryRequirements || '');
+  const [dietaryChoice, setDietaryChoice] = useState(active
+    ? event.booking?.dietaryRequirements || ''
+    : '');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [showCancel, setShowCancel] = useState(false);
@@ -150,12 +178,16 @@ function BookingPanel({ event, onChanged }) {
 
   const register = async (formEvent) => {
     formEvent.preventDefault();
-    setSubmitting(true);
     setError('');
+    if (dietaryChoice !== 'Veg' && dietaryChoice !== 'Non-veg') {
+      setError('Choose Veg or Non-veg before confirming your registration.');
+      return;
+    }
+    setSubmitting(true);
     try {
       const result = await api.post(`/api/events/${encodeURIComponent(event.id)}/booking`, {
         buggyRequired,
-        dietaryRequirements,
+        dietaryRequirements: dietaryChoice,
       });
       await refresh(result.message);
     } catch (registerError) {
@@ -179,6 +211,18 @@ function BookingPanel({ event, onChanged }) {
     }
   };
 
+  if (isAdmin) {
+    return (
+      <aside className="h-fit rounded-2xl border border-border-light bg-white p-6 shadow-lg">
+        <span className="material-symbols-outlined text-4xl text-jaguar-green" aria-hidden="true">admin_panel_settings</span>
+        <h2 className="mt-3 text-2xl font-serif font-black text-midnight-navy">Administrator view</h2>
+        <p className="mt-3 text-sm leading-6 text-gray-600">
+          Sign in with a member account to create or cancel a personal booking.
+        </p>
+      </aside>
+    );
+  }
+
   if (active) {
     return (
       <aside className="h-fit rounded-2xl border-2 border-green-200 bg-white p-6 shadow-lg" aria-labelledby="booking-heading">
@@ -192,7 +236,7 @@ function BookingPanel({ event, onChanged }) {
         </p>
         <dl className="mt-5 space-y-3 rounded-xl bg-surface-light p-4 text-sm">
           <Info label="Buggy" value={event.booking.buggyRequired ? 'Required' : 'Not required'} />
-          <Info label="Dietary requirements" value={event.booking.dietaryRequirements || 'None provided'} />
+          <Info label="Dietary choice" value={event.booking.dietaryRequirements} />
           <Info label="Last updated" value={formatDateTime(event.booking.updatedAt, event.timezone)} />
         </dl>
         {error && <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm font-semibold text-charity-crimson" role="alert">{error}</p>}
@@ -256,24 +300,35 @@ function BookingPanel({ event, onChanged }) {
             <span className="block text-xs text-gray-500">Select only when needed for this event.</span>
           </span>
         </label>
-        <div>
-          <label htmlFor="dietary-requirements" className="mb-2 block text-sm font-bold text-midnight-navy">
-            Dietary requirements <span className="font-normal text-gray-500">(optional)</span>
-          </label>
-          <textarea
-            id="dietary-requirements"
-            rows={3}
-            maxLength={500}
-            value={dietaryRequirements}
-            onChange={(inputEvent) => setDietaryRequirements(inputEvent.target.value)}
-            placeholder="For example: vegetarian"
-            className="w-full rounded-xl border border-gray-300 p-3 focus:border-jaguar-green focus:outline-none focus:ring-2 focus:ring-jaguar-green/30"
-          />
-        </div>
+        <fieldset>
+          <legend className="text-sm font-bold text-midnight-navy">
+            Dietary choice <span className="text-charity-crimson">(required)</span>
+          </legend>
+          <p id="dietary-choice-help" className="mt-1 text-xs text-gray-500">
+            Choose one option before confirming your registration.
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            {['Veg', 'Non-veg'].map((choice) => (
+              <label key={choice} className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-gray-300 p-4 focus-within:ring-2 focus-within:ring-jaguar-green">
+                <input
+                  type="radio"
+                  name="dietary-choice"
+                  value={choice}
+                  required
+                  checked={dietaryChoice === choice}
+                  onChange={(inputEvent) => setDietaryChoice(inputEvent.target.value)}
+                  aria-describedby="dietary-choice-help"
+                  className="h-5 w-5 accent-jaguar-green"
+                />
+                <span className="font-bold text-midnight-navy">{choice}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
         {error && <p className="rounded-lg bg-red-50 p-3 text-sm font-semibold text-charity-crimson" role="alert">{error}</p>}
         <button
           type="submit"
-          disabled={submitting}
+          disabled={submitting || !dietaryChoice}
           className="min-h-12 w-full rounded-lg bg-charity-crimson px-5 py-3 font-black uppercase tracking-wider text-white shadow transition hover:bg-red-800 disabled:cursor-wait disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-charity-crimson"
         >
           {submitting ? 'Confirming…' : 'Confirm my registration'}
@@ -311,4 +366,89 @@ function formatDateTime(value, timezone) {
     timeStyle: 'short',
     timeZone: timezone || 'Europe/London',
   }).format(new Date(value));
+}
+function AttendancePanel({ attendeeCount }) {
+  return (
+    <section className="rounded-2xl border border-border-light bg-white p-6 shadow-lg" aria-labelledby="attendance-heading">
+      <p className="text-xs font-black uppercase tracking-[0.2em] text-trophy-gold">Confirmed places</p>
+      <h2 id="attendance-heading" className="mt-1 text-2xl font-serif font-black text-midnight-navy">Attendance</h2>
+      <p className="mt-5 text-3xl font-black text-jaguar-green">{attendeeCount || 0}</p>
+      <p className="mt-2 text-sm text-gray-600">Member names and booking details are available only to administrators.</p>
+    </section>
+  );
+}
+function PaymentPanel({ event, balance, error }) {
+  const allocation = balance?.allocations?.find(
+    (item) => item.eventId === event.id,
+  );
+  const includedAtReconciliation = balance?.reconciledEventIds?.includes(
+    event.id,
+  );
+  const covered = includedAtReconciliation
+    ? balance.outstandingPence === 0
+    : allocation?.isCovered;
+  const hasPaymentPosition = includedAtReconciliation || allocation;
+
+  return (
+    <aside className="h-fit rounded-2xl border border-border-light bg-white p-6 shadow-lg" aria-labelledby="payment-heading">
+      <span className="material-symbols-outlined text-4xl text-jaguar-green" aria-hidden="true">account_balance_wallet</span>
+      <p className="mt-3 text-xs font-black uppercase tracking-[0.2em] text-trophy-gold">Private to you</p>
+      <h2 id="payment-heading" className="mt-1 text-2xl font-serif font-black text-midnight-navy">
+        Payment and balance
+      </h2>
+      {hasPaymentPosition ? (
+        <div className={`mt-5 rounded-xl border p-4 ${
+          covered
+            ? 'border-green-200 bg-green-50 text-green-900'
+            : 'border-amber-200 bg-amber-50 text-amber-950'
+        }`}>
+          <p className="flex items-center gap-2 font-black">
+            <span className="material-symbols-outlined" aria-hidden="true">
+              {covered ? 'verified' : 'warning'}
+            </span>
+            {includedAtReconciliation
+              ? covered
+                ? "Included in Chetan's reconciled balance"
+                : `${formatMoney(balance.outstandingPence)} outstanding on your account`
+              : covered
+                ? 'Covered by your reconciled balance'
+                : `${formatMoney(allocation.outstandingPence)} outstanding`}
+          </p>
+          <p className="mt-2 text-sm leading-5">
+            {includedAtReconciliation
+              ? `This booking was made on or before the ${formatDateOnly(balance.reconciledOn)} reconciliation.`
+              : `Only bookings after the ${formatDateOnly(balance.reconciledOn)} reconciliation are deducted. Earlier deadlines are funded first.`}
+          </p>
+        </div>
+      ) : (
+        <p className="mt-5 rounded-lg bg-surface-light p-4 text-sm font-semibold text-gray-700">
+          {error || 'Coverage will appear when this event has a confirmed cost and booking.'}
+        </p>
+      )}
+      {balance && (
+        <dl className="mt-4 rounded-xl bg-surface-light p-4">
+          <Info label="Reconciled balance" value={formatMoney(balance.balancePence)} />
+          <Info label="Last reconciled" value={formatDateOnly(balance.reconciledOn)} />
+          <Info label="After later bookings" value={formatMoney(balance.projectedBalancePence)} />
+        </dl>
+      )}
+      <p className="mt-4 text-xs leading-5 text-gray-500">
+        Other members cannot see your balance or outstanding amount.
+      </p>
+    </aside>
+  );
+}
+function formatMoney(pence) {
+  return new Intl.NumberFormat('en-GB', {
+    style: 'currency',
+    currency: 'GBP',
+  }).format(Number(pence || 0) / 100);
+}
+
+function formatDateOnly(value) {
+  if (!value) return 'Not available';
+  return new Intl.DateTimeFormat('en-GB', {
+    dateStyle: 'long',
+    timeZone: 'Europe/London',
+  }).format(new Date(`${value}T12:00:00Z`));
 }

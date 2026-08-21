@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "jgs-secure-booking-local",
-  "compatibility_date": "2026-07-27",
+  "compatibility_date": "2026-08-21",
   "pages_build_output_dir": "./dist",
   "d1_databases": [
     {
@@ -12,8 +12,17 @@
     }
   ],
   "vars": {
-    "APP_ORIGIN": "http://127.0.0.1:8788",
-    "MASTER_FIXTURES_CSV_URL": "https://docs.google.com/spreadsheets/d/1CT8BuIQOhymev6m7JTOcSfOGFJbSi_UjdNCH4Jkqbh0/export?format=csv&gid=1747129771",
+    "APP_ORIGIN": "http://localhost:8788",
+    "MASTER_FIXTURES_CSV_URL": "https://example.invalid/fixtures.csv",
+    "MASTER_LEADERBOARDS_CSV_URL": "https://example.invalid/leaderboards.csv",
+    "MEMBER_BALANCES_CSV_URL": "https://example.invalid/member-balances.csv",
+    "FIXTURES_WORKBOOK_URL": "https://docs.google.com/spreadsheets/d/replace-with-approved-id/edit#gid=0",
+    "LEADERBOARDS_WORKBOOK_URL": "https://docs.google.com/spreadsheets/d/replace-with-approved-id/edit#gid=0",
+    "MEMBER_BALANCES_WORKBOOK_URL": "https://docs.google.com/spreadsheets/d/replace-with-approved-id/edit#gid=0",
+    "BOOKING_MANAGEMENT_WORKBOOK_URL": "https://docs.google.com/spreadsheets/d/replace-with-approved-id/edit#gid=0",
+    "MEMBER_FINANCE_LINKS_WORKBOOK_URL": "https://docs.google.com/spreadsheets/d/replace-with-approved-id/edit#gid=0",
+    "EXPECTED_FIXTURE_IDS": "season-opener-2026,may-monthly-2026,may-midweek-2026,june-monthly-2026,charity-day-2026,july-monthly-2026,july-midweek-2026,aug-monthly-2026,aug-midweek-2026,weekend-away-2026,sept-monthly-2026,season-finale-2026",
+    "RECOVERY_ADMIN_EMAIL": "recovery-admin@example.invalid",
     "DEFAULT_CANCELLATION_CUTOFF_DAYS": "7"
   }
 }

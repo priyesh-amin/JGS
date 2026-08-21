@@ -11,6 +11,26 @@ const SESSION_COOKIE = 'jgs_session';
 const SESSION_DAYS = 30;
 const LOGIN_WINDOW_MINUTES = 15;
 const LOGIN_MAX_ATTEMPTS = 10;
+export const OPERATIONAL_ADMIN_USERNAME = 'admin';
+const OPERATIONAL_ADMIN_INTERNAL_EMAIL = 'admin@operational.invalid';
+const DUMMY_PASSWORD_RECORD = Object.freeze({
+  password_hash: 'u8qvlaavzUno9x7WbW0ljFRXuYGh444aNPlLu0ggU84',
+  password_salt: 'AAECAwQFBgcICQoLDA0ODw',
+  password_iterations: 100_000,
+});
+
+function canRecoverOperationalAdmin(env, member) {
+  if (member?.username || !member?.email || !env.RECOVERY_ADMIN_EMAIL) {
+    return false;
+  }
+  try {
+    return normaliseEmail(member.email) === normaliseEmail(
+      env.RECOVERY_ADMIN_EMAIL,
+    );
+  } catch {
+    return false;
+  }
+}
 
 function parseCookies(request) {
   const result = {};
@@ -45,7 +65,7 @@ export async function currentUser(context) {
   const now = new Date().toISOString();
   const user = await context.env.DB.prepare(
     `SELECT
-       m.id, m.email, m.display_name, m.role, m.status,
+       m.id, m.email, m.username, m.display_name, m.role, m.status,
        m.must_change_password, m.finance_url,
        s.id_hash AS session_id_hash, s.expires_at
      FROM sessions s
@@ -63,11 +83,14 @@ export async function currentUser(context) {
 
   return {
     id: user.id,
-    email: user.email,
+    email: user.username ? null : user.email,
+    username: user.username || null,
     displayName: user.display_name,
     role: user.role,
-    mustChangePassword: Boolean(user.must_change_password),
+    mustChangePassword: Boolean(user.must_change_password)
+      && !(user.role === 'admin' && user.username === OPERATIONAL_ADMIN_USERNAME),
     financeUrl: user.finance_url || null,
+    canRecoverOperationalAdmin: canRecoverOperationalAdmin(context.env, user),
     sessionIdHash: user.session_id_hash,
   };
 }
@@ -82,6 +105,17 @@ export async function requireUser(context, { allowPasswordChange = false } = {})
       403,
       'password_change_required',
       'Change your temporary password before continuing.',
+    );
+  }
+  return user;
+}
+
+export function assertMember(user) {
+  if (user.role !== 'member') {
+    throw new AppError(
+      403,
+      'member_account_required',
+      'A member account is required to manage a booking.',
     );
   }
   return user;
@@ -143,26 +177,57 @@ async function recordFailedLogin(context, key, previous, now) {
   ).bind(key, startedAt, attempts, lockedUntil).run();
 }
 
-export async function login(context, emailValue, password) {
-  const email = normaliseEmail(emailValue);
-  const now = new Date();
-  const key = await throttleKey(context.request, email);
-  const throttle = await assertNotThrottled(context, key, now);
-  const member = await context.env.DB.prepare(
-    `SELECT id, email, display_name, role, status, must_change_password,
-            finance_url, password_hash, password_salt, password_iterations
-     FROM members WHERE email = ?`,
-  ).bind(email).first();
+export function normaliseUsername(value) {
+  const username = String(value || '').trim().toLowerCase();
+  if (!/^[a-z][a-z0-9._-]{2,31}$/.test(username)) {
+    throw new AppError(
+      400,
+      'invalid_identifier',
+      'Enter a valid email address or username.',
+    );
+  }
+  return username;
+}
 
-  const valid = member?.status === 'active'
-    && await verifyPassword(String(password || ''), member);
+export function normaliseLoginIdentifier(value) {
+  const identifier = String(value || '').trim();
+  return identifier.includes('@')
+    ? { kind: 'email', value: normaliseEmail(identifier) }
+    : { kind: 'username', value: normaliseUsername(identifier) };
+}
+
+export async function login(context, identifierValue, password) {
+  const identifier = normaliseLoginIdentifier(identifierValue);
+  const now = new Date();
+  const key = await throttleKey(context.request, identifier.value);
+  const throttle = await assertNotThrottled(context, key, now);
+  const lookup = identifier.kind === 'email'
+    ? `SELECT id, email, username, display_name, role, status,
+              must_change_password, finance_url, password_hash,
+              password_salt, password_iterations
+       FROM members WHERE email = ? AND username IS NULL`
+    : `SELECT id, email, username, display_name, role, status,
+              must_change_password, finance_url, password_hash,
+              password_salt, password_iterations
+       FROM members WHERE username = ?`;
+  const member = await context.env.DB.prepare(lookup)
+    .bind(identifier.value)
+    .first();
+
+  const passwordMatches = await verifyPassword(
+    String(password || ''),
+    member || DUMMY_PASSWORD_RECORD,
+  );
+  const valid = Boolean(member)
+    && member.status === 'active'
+    && passwordMatches;
 
   if (!valid) {
     await recordFailedLogin(context, key, throttle, now);
     throw new AppError(
       401,
       'invalid_credentials',
-      'The email address or password is incorrect.',
+      'The email address, username or password is incorrect.',
     );
   }
 
@@ -190,11 +255,17 @@ export async function login(context, emailValue, password) {
   return {
     user: {
       id: member.id,
-      email: member.email,
+      email: member.username ? null : member.email,
+      username: member.username || null,
       displayName: member.display_name,
       role: member.role,
-      mustChangePassword: Boolean(member.must_change_password),
+      mustChangePassword: Boolean(member.must_change_password)
+        && !(member.role === 'admin' && member.username === OPERATIONAL_ADMIN_USERNAME),
       financeUrl: member.finance_url || null,
+      canRecoverOperationalAdmin: canRecoverOperationalAdmin(
+        context.env,
+        member,
+      ),
     },
     cookie: sessionCookie(
       token,
@@ -244,6 +315,108 @@ export async function changePassword(context, currentPassword, newPassword) {
   ]);
 
   return { ...user, mustChangePassword: false };
+}
+
+function constantTimeTextEqual(leftValue, rightValue) {
+  const left = new TextEncoder().encode(String(leftValue || ''));
+  const right = new TextEncoder().encode(String(rightValue || ''));
+  const length = Math.max(left.length, right.length);
+  let mismatch = left.length ^ right.length;
+  for (let index = 0; index < length; index += 1) {
+    mismatch |= (left[index] || 0) ^ (right[index] || 0);
+  }
+  return mismatch === 0;
+}
+
+export async function setupOperationalAdmin(context, input) {
+  const configuredToken = context.env.OPERATIONAL_ADMIN_SETUP_TOKEN;
+  const suppliedToken = context.request.headers.get(
+    'x-operational-admin-setup-token',
+  );
+  if (
+    !configuredToken
+    || !suppliedToken
+    || !constantTimeTextEqual(suppliedToken, configuredToken)
+  ) {
+    throw new AppError(404, 'not_found', 'Not found.');
+  }
+  if (!context.env.RECOVERY_ADMIN_EMAIL) {
+    throw new AppError(
+      503,
+      'recovery_admin_not_configured',
+      'Operational administrator recovery is not configured.',
+    );
+  }
+  const recoveryEmail = normaliseEmail(context.env.RECOVERY_ADMIN_EMAIL);
+  const recovery = await context.env.DB.prepare(
+    `SELECT id FROM members
+     WHERE email = ? AND username IS NULL
+       AND role = 'admin' AND status = 'active'`,
+  ).bind(recoveryEmail).first();
+  if (!recovery) {
+    throw new AppError(
+      503,
+      'recovery_admin_unavailable',
+      'Operational administrator recovery is unavailable.',
+    );
+  }
+  const existing = await context.env.DB.prepare(
+    'SELECT id FROM members WHERE username = ?',
+  ).bind(OPERATIONAL_ADMIN_USERNAME).first();
+  if (existing) {
+    throw new AppError(
+      409,
+      'operational_admin_unavailable',
+      'Operational administrator setup is unavailable.',
+    );
+  }
+
+  const password = await hashPassword(input.password);
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  try {
+    await context.env.DB.batch([
+      context.env.DB.prepare(
+        `INSERT INTO members
+           (id, email, username, display_name, role, status, password_hash,
+            password_salt, password_iterations, must_change_password,
+            created_at, updated_at)
+         VALUES (?, ?, ?, 'Operational Administrator', 'admin', 'active',
+                 ?, ?, ?, 0, ?, ?)`,
+      ).bind(
+        id,
+        OPERATIONAL_ADMIN_INTERNAL_EMAIL,
+        OPERATIONAL_ADMIN_USERNAME,
+        password.hash,
+        password.salt,
+        password.iterations,
+        now,
+        now,
+      ),
+      context.env.DB.prepare(
+        `INSERT INTO account_security_audit
+           (id, actor_member_id, actor_kind, target_member_id, action, created_at)
+         VALUES (?, ?, 'system_setup', ?, 'operational_admin_created', ?)`,
+      ).bind(crypto.randomUUID(), null, id, now),
+    ]);
+  } catch (error) {
+    if (String(error?.message || error).includes('UNIQUE constraint failed')) {
+      throw new AppError(
+        409,
+        'operational_admin_unavailable',
+        'Operational administrator setup is unavailable.',
+      );
+    }
+    throw error;
+  }
+  return {
+    id,
+    email: null,
+    username: OPERATIONAL_ADMIN_USERNAME,
+    displayName: 'Operational Administrator',
+    role: 'admin',
+    status: 'active',
+  };
 }
 
 export async function bootstrapAdmin(context, input) {

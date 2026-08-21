@@ -1,9 +1,13 @@
 name: Sync Content & Deploy
 
 on:
-  workflow_dispatch: # Allows manual trigger from GitHub UI
-  repository_dispatch: # Allows trigger via API (from our Admin Function)
+  workflow_dispatch:
+  repository_dispatch:
     types: [sync_content]
+
+permissions:
+  contents: write
+  deployments: write
 
 jobs:
   sync-and-update:
@@ -11,14 +15,14 @@ jobs:
     
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
         with:
-          token: ${{ secrets.GH_PAT }} # Important for pushing back to protected branches
+          token: ${{ secrets.GH_PAT }}
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
-          python-version: '3.9'
+          python-version: '3.13'
 
       - name: Install Dependencies
         run: |
@@ -34,41 +38,51 @@ jobs:
       - name: Sync Google Sheets Data
         run: python scripts/sync_google_sheets.py
         env:
-           # If the script needs secrets, inject them here.
-           # Currently script uses public links so might be fine.
-           PYTHONUNBUFFERED: 1
+          PYTHONUNBUFFERED: 1
 
-      - name: Check for Changes
-        id: git-check
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install and verify
         run: |
-          git diff --exit-code || echo "::set-output name=changes::true"
+          npm ci
+          npm run check
+
+      - name: Check approved content files for changes
+        id: git_check
+        run: |
+          if git diff --quiet -- \
+            src/data/fixtures.json \
+            src/data/leaderboards.json \
+            src/data/metadata.json \
+            src/data/signups.json; then
+            echo "changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changes=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Commit & Push Changes
-        if: steps.git-check.outputs.changes == 'true'
+        if: steps.git_check.outputs.changes == 'true'
         run: |
           git config --global user.name 'JGS Bot'
-          git config --global user.email 'bot@jaguargolfsociety.com'
-          git add .
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add -- \
+            src/data/fixtures.json \
+            src/data/leaderboards.json \
+            src/data/metadata.json \
+            src/data/signups.json
           git commit -m "Auto-Sync: Updated content from Google Sheets"
           git push
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-
-      - name: Install and Build
-        run: |
-          npm install
-          npm run build
-
       - name: Deploy to Cloudflare Pages
-        uses: cloudflare/pages-action@v1
+        if: github.ref == 'refs/heads/main'
+        uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: jaguargolfsociety
-          directory: dist
           gitHubToken: ${{ secrets.GH_PAT }}
-          branch: main
-          wranglerVersion: '3'
+          wranglerVersion: '4'
+          command: pages deploy dist --project-name=jaguargolfsociety --branch=main

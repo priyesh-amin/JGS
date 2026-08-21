@@ -103,9 +103,9 @@ export default function Sponsorship() {
                                             </li>
                                         ))}
                                     </ul>
-                                    <button className="w-full bg-jaguar-green text-white py-3 rounded font-bold uppercase tracking-widest hover:bg-green-900 transition-colors shadow-lg">
-                                        Select Package
-                                    </button>
+                                    <p className="rounded-lg bg-surface-light p-3 text-center text-sm font-semibold text-gray-600">
+                                        Availability and benefits must be confirmed with the committee.
+                                    </p>
                                 </div>
                             </div>
                         ))}
@@ -120,16 +120,9 @@ export default function Sponsorship() {
                     <p className="text-white/80 mb-8 max-w-2xl mx-auto">
                         Contact our treasury team to discuss custom packages or to secure your sponsorship for the 2026 season.
                     </p>
-                    <div className="flex flex-col sm:flex-row justify-center gap-4">
-                        <a href="mailto:treasurer@jaguargolfsociety.co.uk" className="inline-flex items-center justify-center px-8 py-4 bg-trophy-gold text-jaguar-green font-bold rounded shadow-lg hover:bg-yellow-500 transition-colors uppercase tracking-wider">
-                            <span className="material-symbols-outlined mr-2">mail</span>
-                            Contact Treasurer
-                        </a>
-                        <button className="inline-flex items-center justify-center px-8 py-4 bg-transparent border-2 border-white text-white font-bold rounded shadow-lg hover:bg-white/10 transition-colors uppercase tracking-wider">
-                            <span className="material-symbols-outlined mr-2">download</span>
-                            Download Prospectus
-                        </button>
-                    </div>
+                    <p className="mx-auto max-w-2xl rounded-lg border border-white/30 bg-white/10 p-4 text-white" role="status">
+                        A verified public enquiry address and sponsorship prospectus are not yet available. Please speak to a committee member through your usual society contact.
+                    </p>
                 </div>
             </div>
 

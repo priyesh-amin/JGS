@@ -1,18 +1,22 @@
 import { useCallback, useEffect, useId, useState } from 'react';
 import MainLayout from '../layouts/MainLayout';
 import { api } from '../lib/api';
+import { useAuth } from '../contexts/useAuth';
 
 const TABS = [
   ['events', 'Events', 'event'],
   ['attendees', 'Attendees', 'groups'],
   ['members', 'Members', 'manage_accounts'],
+  ['operations', 'Operations', 'account_tree'],
   ['system', 'Sync status', 'sync'],
 ];
 
 export default function Admin() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('events');
   const [members, setMembers] = useState([]);
   const [events, setEvents] = useState([]);
+  const [operations, setOperations] = useState(null);
   const [system, setSystem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -22,13 +26,15 @@ export default function Admin() {
     setLoading(true);
     setError('');
     try {
-      const [memberResult, eventResult, systemResult] = await Promise.all([
+      const [memberResult, eventResult, operationsResult, systemResult] = await Promise.all([
         api.get('/api/admin/members'),
         api.get('/api/admin/events'),
+        api.get('/api/admin/operations'),
         api.get('/api/admin/sync'),
       ]);
       setMembers(memberResult.members);
       setEvents(eventResult.events);
+      setOperations(operationsResult);
       setSystem(systemResult);
     } catch (loadError) {
       setError(loadError.message || 'The administrator dashboard could not be loaded.');
@@ -57,7 +63,7 @@ export default function Admin() {
           </p>
         </header>
 
-        <nav className="mt-6 grid grid-cols-2 gap-2 rounded-xl border border-border-light bg-white p-2 shadow-sm sm:grid-cols-4" aria-label="Administrator sections">
+        <nav className="mt-6 grid grid-cols-2 gap-2 rounded-xl border border-border-light bg-white p-2 shadow-sm sm:grid-cols-5" aria-label="Administrator sections">
           {TABS.map(([id, label, icon]) => (
             <button
               key={id}
@@ -93,7 +99,8 @@ export default function Admin() {
             {activeTab === 'events' && <EventsAdmin events={events} onComplete={complete} />}
             {activeTab === 'attendees' && <AttendeesAdmin events={events} onComplete={complete} />}
             {activeTab === 'members' && <MembersAdmin members={members} onComplete={complete} />}
-            {activeTab === 'system' && <SystemAdmin system={system} onComplete={complete} />}
+            {activeTab === 'operations' && <OperationsAdmin operations={operations} />}
+            {activeTab === 'system' && <SystemAdmin system={system} onComplete={complete} canRecoverOperationalAdmin={Boolean(user?.canRecoverOperationalAdmin)} />}
           </div>
         )}
       </div>
@@ -127,6 +134,23 @@ function EventEditor({ event, onComplete }) {
   const [timezone, setTimezone] = useState(event.timezone || 'Europe/London');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  if (event.source_type === 'google_sheet') {
+    return (
+      <details className="overflow-hidden rounded-xl border border-border-light bg-white shadow-sm">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4">
+          <span>
+            <span className="block text-lg font-serif font-bold text-midnight-navy">{event.title}</span>
+            <span className="mt-1 block text-sm text-gray-500">{formatDate(event.event_date)} · {event.venue}</span>
+          </span>
+          <span className="rounded-full bg-jaguar-green/10 px-3 py-1 text-xs font-bold text-jaguar-green">{event.confirmed_count || 0} confirmed</span>
+        </summary>
+        <p className="border-t border-border-light bg-surface-light/60 p-5 text-sm text-gray-700">
+          This fixture is read-only here. Chetan maintains its status and exact booking windows in the authoritative spreadsheet.
+        </p>
+      </details>
+    );
+  }
 
   const save = async (formEvent) => {
     formEvent.preventDefault();
@@ -187,7 +211,7 @@ function MembersAdmin({ members, onComplete }) {
         id="manage-members-heading"
         eyebrow="Individual access"
         title="Manage members"
-        copy="New accounts are invitation-only. Temporary passwords must be changed at first sign-in."
+        copy="New accounts are invitation-only. Members can keep their initial password."
       />
       <CreateMemberForm onComplete={onComplete} />
       <div className="mt-6 space-y-3">
@@ -198,7 +222,7 @@ function MembersAdmin({ members, onComplete }) {
 }
 
 function CreateMemberForm({ onComplete }) {
-  const initial = { displayName: '', email: '', temporaryPassword: '', role: 'member', status: 'disabled', financeUrl: '' };
+  const initial = { displayName: '', email: '', temporaryPassword: '', role: 'member', status: 'disabled', financeUrl: '', mustChangePassword: false };
   const [form, setForm] = useState(initial);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -225,7 +249,7 @@ function CreateMemberForm({ onComplete }) {
       <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <TextField label="Display name" value={form.displayName} onChange={update('displayName')} required />
         <TextField label="Email address" value={form.email} onChange={update('email')} type="email" required />
-        <TextField label="Temporary password" value={form.temporaryPassword} onChange={update('temporaryPassword')} type="password" minLength={12} required />
+        <TextField label="Initial password" value={form.temporaryPassword} onChange={update('temporaryPassword')} type="password" minLength={11} required />
         <SelectField label="Role" value={form.role} onChange={update('role')} options={['member', 'admin']} />
         <SelectField label="Initial status" value={form.status} onChange={update('status')} options={['disabled', 'active']} />
         <TextField label="Personal finance URL" value={form.financeUrl} onChange={update('financeUrl')} type="url" />
@@ -264,7 +288,7 @@ function MemberEditor({ member, onComplete }) {
     try {
       await api.post(`/api/admin/members/${encodeURIComponent(member.id)}/reset-password`, { temporaryPassword });
       setTemporaryPassword('');
-      await onComplete(`${member.displayName} must choose a new password at next sign-in.`);
+      await onComplete(`${member.displayName}'s password was reset.`);
     } catch (resetError) {
       setError(resetError.message || 'The password could not be reset.');
     } finally {
@@ -277,22 +301,28 @@ function MemberEditor({ member, onComplete }) {
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="font-serif text-lg font-bold text-midnight-navy">{member.displayName}</h3>
-          <p className="text-sm text-gray-600">{member.email}</p>
+          <p className="text-sm text-gray-600">{member.username ? `Username: ${member.username}` : member.email}</p>
         </div>
         {member.mustChangePassword && <span className="w-fit rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">Password change required</span>}
       </div>
-      <div className="mt-4 grid gap-3 md:grid-cols-[160px_160px_1fr_auto]">
-        <SelectField label="Role" value={role} onChange={setRole} options={['member', 'admin']} />
-        <SelectField label="Status" value={status} onChange={setStatus} options={['active', 'disabled']} />
-        <TextField label="Personal finance URL" value={financeUrl} onChange={setFinanceUrl} type="url" />
-        <button type="button" onClick={save} disabled={saving} className="min-h-11 self-end rounded-lg bg-jaguar-green px-5 py-3 text-sm font-bold text-white disabled:opacity-60">Save</button>
-      </div>
-      <div className="mt-4 flex flex-col gap-3 border-t border-border-light pt-4 sm:flex-row sm:items-end">
-        <div className="flex-1">
-          <TextField label="New temporary password" value={temporaryPassword} onChange={setTemporaryPassword} type="password" minLength={12} />
-        </div>
-        <button type="button" onClick={reset} disabled={saving || temporaryPassword.length < 12} className="min-h-11 rounded-lg border border-midnight-navy px-5 py-3 text-sm font-bold text-midnight-navy disabled:opacity-40">Reset password</button>
-      </div>
+      {member.username ? (
+        <p className="mt-4 rounded-lg bg-surface-light p-3 text-sm text-gray-600">This fixed operational account is managed only through the private recovery control.</p>
+      ) : (
+        <>
+          <div className="mt-4 grid gap-3 md:grid-cols-[160px_160px_1fr_auto]">
+            <SelectField label="Role" value={role} onChange={setRole} options={['member', 'admin']} />
+            <SelectField label="Status" value={status} onChange={setStatus} options={['active', 'disabled']} />
+            <TextField label="Personal finance URL" value={financeUrl} onChange={setFinanceUrl} type="url" />
+            <button type="button" onClick={save} disabled={saving} className="min-h-11 self-end rounded-lg bg-jaguar-green px-5 py-3 text-sm font-bold text-white disabled:opacity-60">Save</button>
+          </div>
+          <div className="mt-4 flex flex-col gap-3 border-t border-border-light pt-4 sm:flex-row sm:items-end">
+            <div className="flex-1">
+              <TextField label="New password" value={temporaryPassword} onChange={setTemporaryPassword} type="password" minLength={11} autoComplete="new-password" />
+            </div>
+            <button type="button" onClick={reset} disabled={saving || temporaryPassword.length < 11} className="min-h-11 rounded-lg border border-midnight-navy px-5 py-3 text-sm font-bold text-midnight-navy disabled:opacity-40">Reset password</button>
+          </div>
+        </>
+      )}
       {error && <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm font-semibold text-charity-crimson" role="alert">{error}</p>}
     </article>
   );
@@ -345,7 +375,7 @@ function AttendeesAdmin({ events, onComplete }) {
               <tr>
                 <th className="p-4">Member</th>
                 <th className="p-4">Buggy</th>
-                <th className="p-4">Dietary requirements</th>
+                <th className="p-4">Dietary choice</th>
                 <th className="p-4">Status</th>
                 <th className="p-4">Action</th>
               </tr>
@@ -398,14 +428,154 @@ function AttendeeRow({ attendee, onComplete }) {
         {error && <span className="mt-2 block text-xs font-semibold text-charity-crimson" role="alert">{error}</span>}
       </td>
       <td className="p-4"><input type="checkbox" checked={buggyRequired} onChange={(event) => setBuggyRequired(event.target.checked)} aria-label={`Buggy required for ${attendee.display_name}`} className="h-5 w-5 accent-jaguar-green" /></td>
-      <td className="p-4"><input value={dietaryRequirements} onChange={(event) => setDietaryRequirements(event.target.value)} aria-label={`Dietary requirements for ${attendee.display_name}`} className="min-h-10 w-full rounded border border-gray-300 px-2" /></td>
+      <td className="p-4"><select value={dietaryRequirements} onChange={(event) => setDietaryRequirements(event.target.value)} aria-label={`Dietary choice for ${attendee.display_name}`} className="min-h-10 w-full rounded border border-gray-300 px-2"><option value="Veg">Veg</option><option value="Non-veg">Non-veg</option></select></td>
       <td className="p-4"><select value={status} onChange={(event) => setStatus(event.target.value)} aria-label={`Booking status for ${attendee.display_name}`} className="min-h-10 rounded border border-gray-300 px-2"><option value="registered">Registered</option><option value="cancelled">Cancelled</option></select></td>
       <td className="p-4"><button type="button" onClick={save} disabled={saving} className="min-h-10 rounded bg-jaguar-green px-4 py-2 font-bold text-white disabled:opacity-60">{saving ? 'Saving…' : 'Save'}</button></td>
     </tr>
   );
 }
 
-function SystemAdmin({ system, onComplete }) {
+function OperationsAdmin({ operations }) {
+  if (!operations) {
+    return <EmptyState icon="account_tree" text="Operations guidance is unavailable." />;
+  }
+  return (
+    <section aria-labelledby="operations-heading">
+      <SectionHeading
+        id="operations-heading"
+        eyebrow="Sources, ownership and recovery"
+        title="Operations and source guide"
+        copy="Use this protected guide to find approved sources, understand which way data moves and recover safely when a synchronisation needs attention."
+      />
+
+      <div className="mt-5 rounded-xl border border-jaguar-green/30 bg-jaguar-green/5 p-5">
+        <h3 className="font-serif text-xl font-bold text-midnight-navy">What remains authoritative</h3>
+        <ul className="mt-3 space-y-2 text-sm leading-6 text-gray-700">
+          {operations.canonicalRules.map((rule) => (
+            <li key={rule} className="flex gap-2">
+              <span className="material-symbols-outlined mt-0.5 text-base text-jaguar-green" aria-hidden="true">verified</span>
+              <span>{rule}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <h3 className="mt-8 font-serif text-2xl font-bold text-midnight-navy">How data flows</h3>
+      <ol className="mt-4 grid gap-3 md:grid-cols-4" aria-label="Source data flow">
+        {operations.flow.map((step, index) => (
+          <li key={step.id} className="relative rounded-xl border border-border-light bg-white p-5 shadow-sm">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-jaguar-green text-sm font-black text-white">{index + 1}</span>
+            <h4 className="mt-3 font-bold text-midnight-navy">{step.title}</h4>
+            <p className="mt-2 text-sm leading-6 text-gray-600">{step.detail}</p>
+            <p className="mt-3 text-xs font-semibold text-gray-500">Owner: {step.owner}</p>
+          </li>
+        ))}
+      </ol>
+
+      <h3 className="mt-8 font-serif text-2xl font-bold text-midnight-navy">Approved and unresolved sources</h3>
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        {operations.sources.map((item) => (
+          <OperationsSourceCard key={item.id} item={item} />
+        ))}
+      </div>
+
+      <div className="mt-8 grid gap-5 lg:grid-cols-2">
+        <OperationsChecklist
+          title="Routine committee checks"
+          icon="checklist"
+          items={operations.routineChecks}
+        />
+        <OperationsChecklist
+          title="Escalation and recovery"
+          icon="support_agent"
+          items={operations.escalation}
+        />
+      </div>
+    </section>
+  );
+}
+
+function OperationsSourceCard({ item }) {
+  const attention = ['attention', 'unresolved'].includes(item.sync.state)
+    || item.linkStatus === 'misconfigured';
+  return (
+    <article className="rounded-xl border border-border-light bg-white p-5 shadow-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h4 className="font-serif text-xl font-bold text-midnight-navy">{item.label}</h4>
+          <p className="mt-1 text-sm text-gray-500">{item.workbook} · {item.tab}</p>
+        </div>
+        <span className={`w-fit rounded-full px-3 py-1 text-xs font-bold ${attention ? 'bg-amber-100 text-amber-900' : 'bg-green-100 text-green-900'}`}>
+          {item.sync.label}
+        </span>
+      </div>
+      <dl className="mt-4 grid gap-3 text-sm">
+        <OperationsFact label="Purpose" value={item.purpose} />
+        <OperationsFact label="Owner" value={item.owner} />
+        <OperationsFact label="Data direction" value={item.direction} />
+        <OperationsFact label="Classification" value={item.classification} />
+        <OperationsFact label="Last source review" value={formatDate(item.lastVerifiedAt)} />
+        {item.sync.lastRunAt && <OperationsFact label="Last sync" value={formatDateTime(item.sync.lastRunAt)} />}
+      </dl>
+      {item.sync.error && (
+        <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm font-semibold text-charity-crimson" role="status">
+          Latest error: {item.sync.error}
+        </p>
+      )}
+      <p className="mt-4 rounded-lg bg-surface-light p-3 text-sm leading-6 text-gray-700">
+        <strong>Recovery:</strong> {item.recovery}
+      </p>
+      {item.link ? (
+        <a
+          href={item.link}
+          target="_blank"
+          rel="noopener noreferrer"
+          referrerPolicy="no-referrer"
+          className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg bg-jaguar-green px-4 py-2 text-sm font-black text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jaguar-green"
+        >
+          Open restricted workbook
+          <span className="material-symbols-outlined text-base" aria-hidden="true">open_in_new</span>
+        </a>
+      ) : (
+        <p className="mt-4 text-sm font-semibold text-gray-600">
+          {item.linkStatus === 'misconfigured'
+            ? 'Workbook link is misconfigured; ask Priyesh to correct the protected server setting.'
+            : 'Workbook link is unavailable until an approved protected server setting is supplied.'}
+        </p>
+      )}
+    </article>
+  );
+}
+
+function OperationsFact({ label, value }) {
+  return (
+    <div>
+      <dt className="font-bold text-midnight-navy">{label}</dt>
+      <dd className="mt-1 leading-6 text-gray-600">{value}</dd>
+    </div>
+  );
+}
+
+function OperationsChecklist({ title, icon, items }) {
+  return (
+    <section className="rounded-xl border border-border-light bg-white p-5 shadow-sm">
+      <h3 className="flex items-center gap-2 font-serif text-xl font-bold text-midnight-navy">
+        <span className="material-symbols-outlined text-trophy-gold" aria-hidden="true">{icon}</span>
+        {title}
+      </h3>
+      <ol className="mt-4 space-y-3 text-sm leading-6 text-gray-700">
+        {items.map((item, index) => (
+          <li key={item} className="flex gap-3">
+            <span className="font-black text-jaguar-green">{index + 1}.</span>
+            <span>{item}</span>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function SystemAdmin({ system, onComplete, canRecoverOperationalAdmin }) {
   const [working, setWorking] = useState('');
   const [error, setError] = useState('');
   const run = async (kind) => {
@@ -428,6 +598,19 @@ function SystemAdmin({ system, onComplete }) {
     }
   };
   const outbox = system?.outbox || {};
+  const fixtureSummary = system?.lastFixtureSync?.summary;
+  const classifications = fixtureSummary?.classifications || {};
+  const fixtureActions = (fixtureSummary?.fixtures || []).flatMap((fixture) => (
+    (fixture.chetanActions || []).map((action) => ({
+      sourceKey: fixture.sourceKey,
+      action,
+    }))
+  ));
+  const fixtureDetails = fixtureSummary
+    ? `${fixtureSummary.accountedFixtureCount} fixtures accounted for · ${classifications.bookable || 0} bookable · ${classifications.temporarily_unbookable || 0} temporarily unbookable · ${classifications.withheld || 0} withheld · ${classifications.historical_archived || 0} historical`
+    : system?.lastFixtureSync?.completedAt
+      ? `Last completed ${formatDateTime(system.lastFixtureSync.completedAt)}`
+      : 'No successful sync recorded';
   return (
     <section aria-labelledby="sync-heading">
       <SectionHeading
@@ -441,11 +624,23 @@ function SystemAdmin({ system, onComplete }) {
           title="Fixture source"
           icon="event_repeat"
           status={system?.lastFixtureSync?.status || 'Not run'}
-          details={system?.lastFixtureSync?.completed_at ? `Last completed ${formatDateTime(system.lastFixtureSync.completed_at)}` : 'No successful sync recorded'}
+          details={fixtureDetails}
         >
           <button type="button" onClick={() => run('fixtures')} disabled={Boolean(working)} className="mt-4 min-h-11 w-full rounded-lg bg-jaguar-green px-5 py-3 font-black text-white disabled:opacity-60">
             {working === 'fixtures' ? 'Synchronising…' : 'Synchronise fixtures now'}
           </button>
+          {fixtureActions.length > 0 && (
+            <details className="mt-4 text-left">
+              <summary className="cursor-pointer text-sm font-bold text-charity-crimson">Chetan actions ({fixtureActions.length})</summary>
+              <ul className="mt-2 space-y-2 text-sm text-gray-700">
+                {fixtureActions.map((item, index) => (
+                  <li key={`${item.sourceKey}-${index}`}>
+                    <span className="font-bold">{item.sourceKey}:</span> {item.action}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
         </StatusCard>
         <StatusCard
           title="Booking spreadsheet delivery"
@@ -458,8 +653,53 @@ function SystemAdmin({ system, onComplete }) {
           </button>
         </StatusCard>
       </div>
+      {canRecoverOperationalAdmin && <OperationalAdminRecovery onComplete={onComplete} />}
       {error && <p className="mt-4 rounded-lg bg-red-50 p-4 font-semibold text-charity-crimson" role="alert">{error}</p>}
     </section>
+  );
+}
+
+function OperationalAdminRecovery({ onComplete }) {
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmation, setConfirmation] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const reset = async (event) => {
+    event.preventDefault();
+    setError('');
+    if (newPassword !== confirmation) {
+      setError('The two password entries do not match.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.post('/api/admin/operational-admin/reset-password', {
+        newPassword,
+      });
+      setNewPassword('');
+      setConfirmation('');
+      await onComplete('The shared admin password was reset and its existing sessions were signed out.');
+    } catch (resetError) {
+      setError(resetError.message || 'The shared administrator could not be reset.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form onSubmit={reset} className="mt-5 rounded-xl border border-trophy-gold/40 bg-white p-5 shadow-sm">
+      <h3 className="text-lg font-serif font-bold text-midnight-navy">Shared admin recovery</h3>
+      <p className="mt-2 text-sm text-gray-600">Only the private recovery administrator can reset the shared <strong>admin</strong> sign-in. Existing shared sessions are revoked.</p>
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <TextField label="New shared password" value={newPassword} onChange={setNewPassword} type="password" minLength={11} autoComplete="new-password" required />
+        <TextField label="Confirm shared password" value={confirmation} onChange={setConfirmation} type="password" minLength={11} autoComplete="new-password" required />
+      </div>
+      {error && <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm font-semibold text-charity-crimson" role="alert">{error}</p>}
+      <button type="submit" disabled={saving || newPassword.length < 11 || confirmation.length < 11} className="mt-4 min-h-11 rounded-lg border-2 border-jaguar-green px-5 py-3 font-black text-jaguar-green disabled:opacity-40">
+        {saving ? 'Resetting…' : 'Reset shared admin password'}
+      </button>
+    </form>
   );
 }
 
@@ -494,7 +734,7 @@ function EmptyState({ icon, text }) {
   );
 }
 
-function TextField({ label, value, onChange, type = 'text', required = false, minLength }) {
+function TextField({ label, value, onChange, type = 'text', required = false, minLength, autoComplete }) {
   const id = useId();
   return (
     <label htmlFor={id} className="block text-sm font-bold text-midnight-navy">
@@ -505,6 +745,7 @@ function TextField({ label, value, onChange, type = 'text', required = false, mi
         value={value}
         required={required}
         minLength={minLength}
+        autoComplete={autoComplete}
         onChange={(event) => onChange(event.target.value)}
         className="mt-2 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3 font-normal focus:border-jaguar-green focus:outline-none focus:ring-2 focus:ring-jaguar-green/25"
       />

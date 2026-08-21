@@ -122,6 +122,11 @@ function FixtureCard({ event }) {
         <dl className="space-y-3 text-sm">
           <Detail icon="location_on" label="Venue" value={event.venue} />
           <Detail icon="payments" label="Cost" value={event.cost || 'To be confirmed'} />
+          <Detail
+            icon="groups"
+            label="Entrants"
+            value={`${event.attendeeCount} confirmed`}
+          />
           <Detail icon="event_available" label="Registration deadline" value={deadline} />
         </dl>
         <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border-light pt-4">

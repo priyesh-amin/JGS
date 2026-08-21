@@ -1,4 +1,4 @@
-const BOOKING_SHEET = 'Bookings';
+﻿const BOOKING_SHEET = 'Bookings';
 const SYNC_LOG_SHEET = 'Sync Log';
 const HEADER_ROW = 4;
 
@@ -15,8 +15,8 @@ function doPost(e) {
   let lock;
 
   try {
-    payload = JSON.parse(e && e.postData && e.postData.contents || '{}');
-    authenticate_(payload.webhookToken);
+    const envelope = JSON.parse(e && e.postData && e.postData.contents || '{}');
+    payload = authenticateEnvelope_(envelope);
     validatePayload_(payload);
 
     lock = LockService.getScriptLock();
@@ -25,6 +25,15 @@ function doPost(e) {
     }
 
     const spreadsheet = configuredSpreadsheet_();
+    if (payload.eventType === 'booking.reconciliation') {
+      const flagged = auditBookingOutput_(
+        requiredSheet_(spreadsheet, BOOKING_SHEET),
+        requiredSheet_(spreadsheet, SYNC_LOG_SHEET),
+        payload,
+        startedAt,
+      );
+      return jsonResponse_({ ok: true, flagged: flagged });
+    }
     const bookingSheet = requiredSheet_(spreadsheet, BOOKING_SHEET);
     const result = upsertBooking_(bookingSheet, payload);
     appendSyncLog_(
@@ -57,7 +66,7 @@ function doPost(e) {
     }
     return jsonResponse_({
       ok: false,
-      error: String(error && error.message || error).slice(0, 500),
+      error: 'Booking update was rejected.',
     });
   } finally {
     if (lock && lock.hasLock()) lock.releaseLock();
@@ -73,29 +82,38 @@ function configuredSpreadsheet_() {
   return SpreadsheetApp.openById(spreadsheetId);
 }
 
-function authenticate_(providedToken) {
+function authenticateEnvelope_(envelope) {
   const expectedToken = PropertiesService.getScriptProperties()
     .getProperty('BOOKING_SYNC_TOKEN');
-  if (!expectedToken) {
-    throw new Error('BOOKING_SYNC_TOKEN is not configured.');
-  }
-  if (!constantTimeEquals_(String(providedToken || ''), expectedToken)) {
-    throw new Error('Unauthorised booking update.');
-  }
+  if (!expectedToken) throw new Error('BOOKING_SYNC_TOKEN is not configured.');
+  const timestamp = Number(envelope.timestamp);
+  const nonce = String(envelope.nonce || '');
+  const message = String(envelope.message || '');
+  const signature = String(envelope.signature || '').toLowerCase();
+  if (!Number.isInteger(timestamp) || Math.abs(Date.now() / 1000 - timestamp) > 300 || !nonce || nonce.length > 100 || !message || message.length > 20000) throw new Error('Invalid request envelope.');
+  const expectedSignature = Utilities.computeHmacSha256Signature(timestamp + '.' + nonce + '.' + message, expectedToken).map(function (value) {
+    return ((value + 256) % 256).toString(16).padStart(2, '0');
+  }).join('');
+  if (!constantTimeEquals_(signature, expectedSignature)) throw new Error('Unauthorised booking update.');
+  return JSON.parse(message);
 }
 
 function constantTimeEquals_(left, right) {
   let mismatch = left.length ^ right.length;
   const length = Math.max(left.length, right.length);
-  for (let index = 0; index < length; index += 1) {
-    mismatch |= (left.charCodeAt(index) || 0) ^ (right.charCodeAt(index) || 0);
-  }
+  for (let index = 0; index < length; index += 1) mismatch |= (left.charCodeAt(index) || 0) ^ (right.charCodeAt(index) || 0);
   return mismatch === 0;
 }
-
 function validatePayload_(payload) {
-  if (payload.schemaVersion !== 1) {
+  if (payload.schemaVersion !== 2) {
     throw new Error('Unsupported schema version.');
+  }
+  if (payload.eventType === 'booking.reconciliation') {
+    if (!Array.isArray(payload.canonicalBookings) || payload.canonicalBookings.length > 5000) throw new Error('Invalid reconciliation payload.');
+    payload.canonicalBookings.forEach(function (booking) {
+      if (!String(booking.id || '').trim() || !Number.isInteger(Number(booking.version))) throw new Error('Invalid reconciliation booking.');
+    });
+    return;
   }
   [
     ['idempotencyKey', payload.idempotencyKey],
@@ -168,11 +186,12 @@ function upsertBooking_(sheet, payload) {
     return false;
   });
 
-  if (existingKey === payload.idempotencyKey) {
-    return { duplicate: true, stale: false, row: targetRow };
-  }
-  if (targetRow && existingVersion >= Number(payload.booking.version)) {
+  const duplicate = existingKey === payload.idempotencyKey;
+  if (targetRow && existingVersion > Number(payload.booking.version)) {
     return { duplicate: false, stale: true, row: targetRow };
+  }
+  if (targetRow && existingVersion === Number(payload.booking.version) && !duplicate) {
+    throw new Error('Conflicting booking version.');
   }
   if (!targetRow) targetRow = Math.max(sheet.getLastRow() + 1, firstDataRow);
 
@@ -210,12 +229,49 @@ function upsertBooking_(sheet, payload) {
   set_(rowValues, headers, 'source_row_id', targetRow);
   set_(rowValues, headers, 'version', Number(payload.booking.version));
 
-  sheet.getRange(targetRow, 1, 1, lastColumn).setValues([rowValues]);
-  return { duplicate: false, stale: false, row: targetRow };
+  if (targetRow <= sheet.getLastRow()) {
+    requiredHeaders.forEach(function (header) {
+      if (sheet.getRange(targetRow, headers[header]).getFormula()) throw new Error('Formula collision in managed booking column: ' + header);
+    });
+    requiredHeaders.forEach(function (header) {
+      sheet.getRange(targetRow, headers[header]).setValue(rowValues[headers[header] - 1]);
+    });
+  } else {
+    sheet.getRange(targetRow, 1, 1, lastColumn).setValues([rowValues]);
+  }
+  return { duplicate: duplicate, stale: false, row: targetRow };
 }
 
+function auditBookingOutput_(bookingSheet, logSheet, payload, startedAt) {
+  const headers = headerMap_(bookingSheet, HEADER_ROW);
+  const expected = {};
+  payload.canonicalBookings.forEach(function (booking) { expected[String(booking.id)] = Number(booking.version); });
+  const rowCount = Math.max(0, bookingSheet.getLastRow() - HEADER_ROW);
+  if (!rowCount) return 0;
+  const values = bookingSheet.getRange(HEADER_ROW + 1, 1, rowCount, bookingSheet.getLastColumn()).getValues();
+  let flagged = 0;
+  values.forEach(function (row, index) {
+    const bookingId = String(row[headers.booking_id - 1] || '').trim();
+    if (!bookingId) return;
+    const sheetVersion = Number(row[headers.version - 1] || 0);
+    let issue = '';
+    if (!Object.prototype.hasOwnProperty.call(expected, bookingId)) issue = 'Orphaned sheet row requires human review.';
+    else if (sheetVersion !== expected[bookingId]) issue = 'Conflicting booking version requires human review.';
+    if (issue) {
+      appendSyncLog_(logSheet, { idempotencyKey: payload.idempotencyKey + ':row:' + (HEADER_ROW + 1 + index) }, 'Failed', startedAt, issue);
+      flagged += 1;
+    }
+  });
+  if (!flagged) appendSyncLog_(logSheet, payload, 'Succeeded', startedAt, '');
+  return flagged;
+}
 function appendSyncLog_(sheet, payload, status, startedAt, errorMessage) {
   const headers = headerMap_(sheet, HEADER_ROW);
+  const key = String(payload.idempotencyKey || '');
+  if (key && sheet.getLastRow() > HEADER_ROW) {
+    const keys = sheet.getRange(HEADER_ROW + 1, headers.run_id, sheet.getLastRow() - HEADER_ROW, 1).getValues();
+    if (keys.some(function (row) { return String(row[0]) === key; })) return;
+  }
   const lastColumn = sheet.getLastColumn();
   const rowValues = new Array(lastColumn).fill('');
   const now = new Date();

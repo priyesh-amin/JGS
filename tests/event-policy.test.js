@@ -70,3 +70,22 @@ test('missing windows fail closed instead of guessing a default', () => {
   );
 });
 
+
+test('cancellation configuration is required and closes at the exact boundary', () => {
+  const missing = { ...baseEvent, cancellation_closes_at: null };
+  const missingState = eventAvailability(missing, new Date('2026-08-10T12:00:00Z'));
+  assert.equal(missingState.registration, 'unavailable');
+  assert.equal(missingState.reason, 'configuration_required');
+  assert.throws(
+    () => assertCanRegister(missing, new Date('2026-08-10T12:00:00Z')),
+    (error) => error.code === 'configuration_required',
+  );
+
+  const boundary = eventAvailability(
+    baseEvent,
+    new Date(baseEvent.cancellation_closes_at),
+  );
+  assert.equal(boundary.registration, 'closed');
+  assert.equal(boundary.cancellation, 'closed');
+  assert.equal(boundary.reason, 'cancellation_closed');
+});

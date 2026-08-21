@@ -1,14 +1,25 @@
-# Copy to .dev.vars for local Pages Functions development. Never commit values.
-APP_ORIGIN=http://127.0.0.1:8788
-BOOTSTRAP_TOKEN=replace-with-a-long-random-local-token
+# Copy to .dev.vars for local Pages Functions development. Never commit real values.
+APP_ORIGIN=http://localhost:8788
+BOOTSTRAP_TOKEN=replace-with-private-bootstrap-token
+OPERATIONAL_ADMIN_SETUP_TOKEN=replace-with-private-setup-token
 
-# Existing public fixture source. This is configuration, not a secret.
-MASTER_FIXTURES_CSV_URL=https://docs.google.com/spreadsheets/d/1CT8BuIQOhymev6m7JTOcSfOGFJbSi_UjdNCH4Jkqbh0/export?format=csv&gid=1747129771
-# Used only when a fixture has no CancellationClosesAt value. Event-specific
-# spreadsheet or administrator values take precedence.
-DEFAULT_CANCELLATION_CUTOFF_DAYS=7
+# Source feeds. These examples are deliberately non-operational placeholders.
+MASTER_FIXTURES_CSV_URL=https://example.invalid/fixtures.csv
+MASTER_LEADERBOARDS_CSV_URL=https://example.invalid/leaderboards.csv
+MEMBER_BALANCES_CSV_URL=https://example.invalid/member-balances.csv
+EXPECTED_FIXTURE_IDS=season-opener-2026,may-monthly-2026,may-midweek-2026,june-monthly-2026,charity-day-2026,july-monthly-2026,july-midweek-2026,aug-monthly-2026,aug-midweek-2026,weekend-away-2026,sept-monthly-2026,season-finale-2026
 
-# Required before spreadsheet delivery can be production-enabled.
-BOOKING_SYNC_WEBHOOK_URL=
-BOOKING_SYNC_TOKEN=
+# Approved workbook links returned only by the administrator operations API.
+FIXTURES_WORKBOOK_URL=https://docs.google.com/spreadsheets/d/replace-with-approved-id/edit#gid=0
+LEADERBOARDS_WORKBOOK_URL=https://docs.google.com/spreadsheets/d/replace-with-approved-id/edit#gid=0
+MEMBER_BALANCES_WORKBOOK_URL=https://docs.google.com/spreadsheets/d/replace-with-approved-id/edit#gid=0
+BOOKING_MANAGEMENT_WORKBOOK_URL=https://docs.google.com/spreadsheets/d/replace-with-approved-id/edit#gid=0
+MEMBER_FINANCE_LINKS_WORKBOOK_URL=https://docs.google.com/spreadsheets/d/replace-with-approved-id/edit#gid=0
 
+# Booking-output delivery. Dietary export deliberately has no enabling setting.
+BOOKING_SYNC_WEBHOOK_URL=https://script.google.com/macros/s/replace-with-deployment-id/exec
+BOOKING_SYNC_TOKEN=replace-with-private-booking-sync-token
+FIXTURE_SYNC_TOKEN=replace-with-private-fixture-sync-token
+
+# Non-secret placeholder for the private recovery administrator identity.
+RECOVERY_ADMIN_EMAIL=recovery-admin@example.invalid

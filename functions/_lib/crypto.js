@@ -1,6 +1,9 @@
 import { AppError } from './errors.js';
 
-export const PASSWORD_ITERATIONS = 210_000;
+// Cloudflare Workers currently rejects PBKDF2 calls above 100,000 iterations.
+// Keep the stored iteration count explicit so hashes remain versioned and can
+// be upgraded if the runtime ceiling changes.
+export const PASSWORD_ITERATIONS = 100_000;
 
 function bytesToBase64Url(bytes) {
   let binary = '';
@@ -34,11 +37,11 @@ export async function sha256(value) {
 
 export function validatePassword(password) {
   const value = String(password || '');
-  if (value.length < 12 || value.length > 200) {
+  if (value.length < 11 || value.length > 200) {
     throw new AppError(
       400,
       'weak_password',
-      'Password must be between 12 and 200 characters.',
+      'Password must be between 11 and 200 characters.',
     );
   }
   return value;

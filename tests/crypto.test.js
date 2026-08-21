@@ -1,10 +1,24 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  PASSWORD_ITERATIONS,
   hashPassword,
   randomToken,
+  validatePassword,
   verifyPassword,
 } from '../functions/_lib/crypto.js';
+
+test('password hashing stays within the Cloudflare PBKDF2 ceiling', () => {
+  assert.equal(PASSWORD_ITERATIONS, 100_000);
+});
+test('the configured eleven-character minimum is enforced', () => {
+  assert.equal(validatePassword('abcdefghijk'), 'abcdefghijk');
+  assert.throws(
+    () => validatePassword('abcdefghij'),
+    (error) => error.code === 'weak_password',
+  );
+});
+
 
 test('password hashes are salted and verifiable', async () => {
   const first = await hashPassword('correct horse battery staple');

@@ -42,7 +42,7 @@ export default function AccountSecurity() {
           {user.mustChangePassword ? 'Choose your own password' : 'Change password'}
         </h1>
         <p className="mt-3 text-sm leading-6 text-gray-600">
-          Use at least 12 characters. Your other signed-in sessions will be closed.
+          Use at least 11 characters. Your other signed-in sessions will be closed.
         </p>
         <form onSubmit={handleSubmit} className="mt-7 space-y-5">
           <PasswordField
@@ -88,7 +88,7 @@ function PasswordField({ id, label, value, onChange, autoComplete }) {
         id={id}
         type="password"
         required
-        minLength={12}
+        minLength={11}
         maxLength={200}
         autoComplete={autoComplete}
         value={value}

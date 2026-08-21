@@ -21,13 +21,15 @@ Do not commit either production value.
 4. Update the manifest from `appsscript.json`.
 5. Add the two script properties.
 6. Deploy a **Web app** that executes as the deploying committee account.
-7. Permit access to **Anyone**. The endpoint contains no member data and every
-   POST is rejected unless the JSON-body token matches.
+7. Permit access to **Anyone**. The GET response contains no member data and
+   every POST is rejected unless its timestamped, nonce-protected HMAC
+   signature matches.
 8. Store the resulting `/exec` URL as the Cloudflare Pages secret
    `BOOKING_SYNC_WEBHOOK_URL`.
 
-The adapter returns `{ "ok": true }` only after the booking row and sync log
-have been written. Application-level errors deliberately return
+The adapter receives a signed envelope; the static shared secret is never sent
+in its body. The adapter returns `{ "ok": true }` only after the booking row
+and sync log have been written. Application-level errors deliberately return
 `{ "ok": false, "error": "..." }`; the Cloudflare outbox treats that response
 as failed and retries without invalidating the member's canonical D1 booking.
 

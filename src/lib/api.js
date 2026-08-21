@@ -19,6 +19,9 @@ async function request(path, options = {}) {
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
+    if (response.status === 401 && typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('jgs:unauthenticated'));
+    }
     const error = payload.error || {};
     throw new ApiError(
       response.status,

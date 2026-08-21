@@ -5,7 +5,7 @@ import MainLayout from '../layouts/MainLayout';
 import { safeInternalPath } from '../lib/navigation';
 
 export default function Login() {
-    const [email, setEmail] = useState('');
+    const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [submitting, setSubmitting] = useState(false);
@@ -22,7 +22,7 @@ export default function Login() {
         setSubmitting(true);
 
         try {
-            const user = await login(email, password);
+            const user = await login(identifier, password);
             navigate(user.mustChangePassword ? '/account/security' : from, {
                 replace: true,
                 state: user.mustChangePassword ? { from: location.state?.from } : undefined,
@@ -42,26 +42,26 @@ export default function Login() {
                         <span className="material-symbols-outlined text-6xl text-jaguar-green mb-4">lock</span>
                         <h2 className="text-3xl font-serif font-black text-midnight-navy">Member Access</h2>
                         <p className="mt-2 text-sm text-gray-600">
-                            Sign in with your individual member email to view and manage your bookings.
+                            Members sign in with their email. Operational administrators may use their assigned username.
                         </p>
                     </div>
 
                     <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
                         <div className="space-y-4">
                             <div>
-                                <label htmlFor="email" className="mb-2 block text-sm font-bold text-midnight-navy">
-                                    Email address
+                                <label htmlFor="identifier" className="mb-2 block text-sm font-bold text-midnight-navy">
+                                    Email address or username
                                 </label>
                                 <input
-                                    id="email"
-                                    name="email"
-                                    type="email"
-                                    autoComplete="email"
+                                    id="identifier"
+                                    name="identifier"
+                                    type="text"
+                                    autoComplete="username"
                                     required
                                     className="relative block w-full rounded-md border-0 py-2.5 px-3 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:z-10 focus:ring-2 focus:ring-inset focus:ring-jaguar-green sm:text-sm sm:leading-6"
-                                    placeholder="member@example.com"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="Email address or username"
+                                    value={identifier}
+                                    onChange={(e) => setIdentifier(e.target.value)}
                                 />
                             </div>
                             <div>

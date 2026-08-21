@@ -3,32 +3,39 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=24 <25",
+    "npm": ">=11 <12"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:functions": "node -e \"require('node:fs').mkdirSync('.tmp/pages-functions',{recursive:true})\" && wrangler pages functions build functions --outdir .tmp/pages-functions --output-routes-path .tmp/pages-functions/_routes.json --project-directory .",
+    "package:pages": "npm run build && npm run build:functions",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "node --test",
     "verify:api": "node scripts/verify-booking-api.mjs",
-    "check": "npm run lint && npm run test && npm run build"
+    "check": "npm run lint && npm run test && npm run build && npm run build:functions"
   },
   "dependencies": {
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-router-dom": "^6.20.0"
+    "react-router-dom": "7.18.2"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.1",
+    "@eslint/js": "10.0.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^5.1.1",
-    "autoprefixer": "^10.4.16",
-    "eslint": "^9.39.1",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-react-refresh": "^0.4.24",
-    "globals": "^16.5.0",
-    "postcss": "^8.4.31",
-    "tailwindcss": "^3.3.5",
-    "vite": "^5.2.0"
+    "@vitejs/plugin-react": "6.1.0",
+    "autoprefixer": "10.5.4",
+    "eslint": "10.8.1",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-react-refresh": "0.5.4",
+    "globals": "17.11.0",
+    "postcss": "8.5.26",
+    "tailwindcss": "3.4.19",
+    "vite": "8.2.2",
+    "wrangler": "4.125.0"
   }
 }

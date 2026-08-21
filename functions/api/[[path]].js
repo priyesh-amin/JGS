@@ -1,4 +1,5 @@
-import {
+﻿import {
+  assertMember,
   bootstrapAdmin,
   changePassword,
   currentUser,
@@ -6,6 +7,7 @@ import {
   logout,
   requireAdmin,
   requireUser,
+  setupOperationalAdmin,
 } from '../_lib/auth.js';
 import {
   confirmedAttendees,
@@ -14,6 +16,7 @@ import {
   listAdminEvents,
   listMembers,
   resetMemberPassword,
+  resetOperationalAdminPassword,
   updateEvent,
   updateMember,
 } from '../_lib/admin-store.js';
@@ -23,6 +26,7 @@ import {
   listEventsForMember,
   registerMember,
 } from '../_lib/booking-store.js';
+import { memberBalance } from '../_lib/balance-store.js';
 import { AppError } from '../_lib/errors.js';
 import {
   assertSameOrigin,
@@ -35,10 +39,12 @@ import {
   deliverPendingOutbox,
   integrationStatus,
 } from '../_lib/integration.js';
+import { recordFailedSync } from '../_lib/sheet-sync.js';
+import { listLeaderboards } from '../_lib/leaderboard-reconciliation.js';
 import {
-  recordFailedSync,
-  syncFixtureSheet,
-} from '../_lib/sheet-sync.js';
+  reconcileFixtureSheet,
+} from '../_lib/fixture-reconciliation.js';
+import { operationsDashboard } from '../_lib/operations-dashboard.js';
 
 function pathParts(request) {
   return new URL(request.url).pathname
@@ -63,6 +69,19 @@ async function route(context) {
   const parts = pathParts(context.request);
   const method = context.request.method.toUpperCase();
 
+  if (parts[0] === 'leaderboards') {
+    if (method !== 'GET') return methodNotAllowed(['GET']);
+    try {
+      return json({ leaderboards: await listLeaderboards(context.env.DB) });
+    } catch {
+      throw new AppError(
+        503,
+        'leaderboards_unavailable',
+        'Leaderboard results are temporarily unavailable.',
+      );
+    }
+  }
+
   if (parts[0] === 'setup' && parts[1] === 'bootstrap') {
     if (method !== 'POST') return methodNotAllowed(['POST']);
     assertSameOrigin(context.request, context.env);
@@ -70,12 +89,27 @@ async function route(context) {
     return json({ user: await bootstrapAdmin(context, input) }, 201);
   }
 
+  if (parts[0] === 'setup' && parts[1] === 'operational-admin') {
+    if (method !== 'POST') return methodNotAllowed(['POST']);
+    assertSameOrigin(context.request, context.env);
+    return json({
+      user: await setupOperationalAdmin(
+        context,
+        await readJson(context.request),
+      ),
+    }, 201);
+  }
+
   if (parts[0] === 'auth') {
     if (parts[1] === 'login') {
       if (method !== 'POST') return methodNotAllowed(['POST']);
       assertSameOrigin(context.request, context.env);
       const input = await readJson(context.request);
-      const result = await login(context, input.email, input.password);
+      const result = await login(
+        context,
+        input.identifier ?? input.email,
+        input.password,
+      );
       return json(
         { user: result.user },
         200,
@@ -130,7 +164,7 @@ async function route(context) {
     }
 
     const eventId = parts[1];
-    if (parts.length === 2) {
+     if (parts.length === 2) {
       if (method !== 'GET') return methodNotAllowed(['GET']);
       return json({
         event: await getEventForMember(context.env.DB, user.id, eventId),
@@ -138,6 +172,7 @@ async function route(context) {
     }
 
     if (parts[2] === 'booking') {
+      assertMember(user);
       if (!['POST', 'DELETE'].includes(method)) {
         return methodNotAllowed(['POST', 'DELETE']);
       }
@@ -165,13 +200,46 @@ async function route(context) {
     }
   }
 
+  if (parts[0] === 'account' && parts[1] === 'balance') {
+    if (method !== 'GET') return methodNotAllowed(['GET']);
+    return json(await memberBalance(context, await requireUser(context)));
+  }
+
   if (parts[0] === 'admin') {
     const admin = await requireAdmin(context);
+
+    if (parts[1] === 'operations') {
+      if (method !== 'GET') return methodNotAllowed(['GET']);
+      return json(await operationsDashboard(context));
+    }
+
+    if (
+      parts[1] === 'operational-admin'
+      && parts[2] === 'reset-password'
+    ) {
+      if (method !== 'POST') return methodNotAllowed(['POST']);
+      assertSameOrigin(context.request, context.env);
+      const input = await readJson(context.request);
+      return json({
+        account: await resetOperationalAdminPassword(
+          context.env.DB,
+          admin,
+          input.newPassword,
+          context.env.RECOVERY_ADMIN_EMAIL,
+        ),
+      });
+    }
 
     if (parts[1] === 'members') {
       if (parts.length === 2) {
         if (method === 'GET') {
-          return json({ members: await listMembers(context.env.DB) });
+          return json({
+            members: await listMembers(
+              context.env.DB,
+              admin,
+              context.env.RECOVERY_ADMIN_EMAIL,
+            ),
+          });
         }
         if (method === 'POST') {
           assertSameOrigin(context.request, context.env);
@@ -197,6 +265,8 @@ async function route(context) {
             context.env.DB,
             memberId,
             input.temporaryPassword,
+            admin,
+            context.env.RECOVERY_ADMIN_EMAIL,
           ),
         });
       }
@@ -208,6 +278,7 @@ async function route(context) {
           memberId,
           await readJson(context.request),
           admin,
+          context.env.RECOVERY_ADMIN_EMAIL,
         ),
       });
     }
@@ -253,7 +324,7 @@ async function route(context) {
       if (method !== 'POST') return methodNotAllowed(['GET', 'POST']);
       assertSameOrigin(context.request, context.env);
       const sourceUrl = context.env.MASTER_FIXTURES_CSV_URL;
-      if (!sourceUrl) {
+      if (!sourceUrl || !context.env.EXPECTED_FIXTURE_IDS) {
         throw new AppError(
           503,
           'fixture_source_not_configured',
@@ -265,13 +336,13 @@ async function route(context) {
         if (!response.ok) {
           throw new Error(`Fixture source returned HTTP ${response.status}`);
         }
-        const result = await syncFixtureSheet(
+        const result = await reconcileFixtureSheet(
           context.env.DB,
           await response.text(),
           new Date(),
           {
-            defaultCancellationCutoffDays:
-              context.env.DEFAULT_CANCELLATION_CUTOFF_DAYS,
+            expectedFixtureIds: context.env.EXPECTED_FIXTURE_IDS,
+            requiredExpectedFixtureCount: 12,
           },
         );
         return json({ sync: result });
@@ -301,4 +372,3 @@ async function route(context) {
 export function onRequest(context) {
   return handleApi(() => route(context));
 }
-

@@ -1,14 +1,37 @@
 import { AppError } from './errors.js';
 import { hashPassword } from './crypto.js';
 import { normaliseEmail, requireString } from './http.js';
+import { normaliseDietaryChoice } from './booking-store.js';
 
-export async function listMembers(db) {
+function isRecoveryAccount(member, recoveryEmailValue) {
+  if (!member || member.username || !recoveryEmailValue) return false;
+  try {
+    return normaliseEmail(member.email) === normaliseEmail(recoveryEmailValue);
+  } catch {
+    return false;
+  }
+}
+
+function assertGenericAccountMutationAllowed(member, actor, recoveryEmailValue) {
+  if (member.username || (actor?.username && isRecoveryAccount(
+    member,
+    recoveryEmailValue,
+  ))) {
+    throw new AppError(404, 'member_not_found', 'Member not found.');
+  }
+}
+
+export async function listMembers(db, actor, recoveryEmailValue) {
   const result = await db.prepare(
-    `SELECT id, email, display_name, role, status, must_change_password,
+    `SELECT id, email, username, display_name, role, status, must_change_password,
             finance_url, created_at, updated_at
      FROM members ORDER BY display_name COLLATE NOCASE`,
   ).all();
-  return result.results.map(mapMember);
+  return result.results
+    .filter((member) => !(
+      actor?.username && isRecoveryAccount(member, recoveryEmailValue)
+    ))
+    .map(mapMember);
 }
 
 export async function createMember(db, input, now = new Date()) {
@@ -22,6 +45,7 @@ export async function createMember(db, input, now = new Date()) {
   const id = crypto.randomUUID();
   const timestamp = now.toISOString();
   const financeUrl = validateFinanceUrl(input.financeUrl);
+  const mustChangePassword = Boolean(input.mustChangePassword);
 
   try {
     await db.prepare(
@@ -29,7 +53,7 @@ export async function createMember(db, input, now = new Date()) {
          (id, email, display_name, role, status, password_hash, password_salt,
           password_iterations, must_change_password, finance_url,
           created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).bind(
       id,
       email,
@@ -39,6 +63,7 @@ export async function createMember(db, input, now = new Date()) {
       password.hash,
       password.salt,
       password.iterations,
+      mustChangePassword ? 1 : 0,
       financeUrl,
       timestamp,
       timestamp,
@@ -60,16 +85,24 @@ export async function createMember(db, input, now = new Date()) {
     displayName,
     role,
     status,
-    mustChangePassword: true,
+    mustChangePassword,
     financeUrl,
   };
 }
 
-export async function updateMember(db, memberId, input, actor, now = new Date()) {
+export async function updateMember(
+  db,
+  memberId,
+  input,
+  actor,
+  recoveryEmailValue,
+  now = new Date(),
+) {
   const existing = await db.prepare(
     'SELECT * FROM members WHERE id = ?',
   ).bind(memberId).first();
   if (!existing) throw new AppError(404, 'member_not_found', 'Member not found.');
+  assertGenericAccountMutationAllowed(existing, actor, recoveryEmailValue);
 
   const nextRole = input.role === undefined
     ? existing.role
@@ -113,7 +146,8 @@ export async function updateMember(db, memberId, input, actor, now = new Date())
 
   return {
     id: memberId,
-    email: existing.email,
+    email: existing.username ? null : existing.email,
+    username: existing.username || null,
     displayName,
     role: nextRole,
     status: nextStatus,
@@ -122,15 +156,28 @@ export async function updateMember(db, memberId, input, actor, now = new Date())
   };
 }
 
-export async function resetMemberPassword(db, memberId, temporaryPassword) {
+export async function resetMemberPassword(
+  db,
+  memberId,
+  temporaryPassword,
+  actor,
+  recoveryEmailValue,
+) {
+  const target = await db.prepare(
+    'SELECT id, email, username FROM members WHERE id = ?',
+  ).bind(memberId).first();
+  if (!target) {
+    throw new AppError(404, 'member_not_found', 'Member not found.');
+  }
+  assertGenericAccountMutationAllowed(target, actor, recoveryEmailValue);
   const password = await hashPassword(temporaryPassword);
   const timestamp = new Date().toISOString();
   const result = await db.batch([
     db.prepare(
       `UPDATE members
        SET password_hash = ?, password_salt = ?, password_iterations = ?,
-           must_change_password = 1, updated_at = ?
-       WHERE id = ?`,
+           must_change_password = 0, updated_at = ?
+       WHERE id = ? AND username IS NULL`,
     ).bind(
       password.hash,
       password.salt,
@@ -143,7 +190,68 @@ export async function resetMemberPassword(db, memberId, temporaryPassword) {
   if (!result[0]?.meta?.changes) {
     throw new AppError(404, 'member_not_found', 'Member not found.');
   }
-  return { id: memberId, mustChangePassword: true };
+  return { id: memberId, mustChangePassword: false };
+}
+
+export async function resetOperationalAdminPassword(
+  db,
+  actor,
+  newPassword,
+  recoveryEmailValue,
+) {
+  const recoveryEmail = normaliseEmail(recoveryEmailValue);
+  if (
+    actor.username
+    || normaliseEmail(actor.email) !== recoveryEmail
+    || actor.role !== 'admin'
+  ) {
+    throw new AppError(
+      403,
+      'recovery_admin_required',
+      'The private recovery administrator is required.',
+    );
+  }
+  const target = await db.prepare(
+    `SELECT id FROM members
+     WHERE username = 'admin' AND role = 'admin' AND status = 'active'`,
+  ).first();
+  if (!target) {
+    throw new AppError(
+      409,
+      'operational_admin_unavailable',
+      'Operational administrator recovery is unavailable.',
+    );
+  }
+  const password = await hashPassword(newPassword);
+  const timestamp = new Date().toISOString();
+  const result = await db.batch([
+    db.prepare(
+      `UPDATE members
+       SET password_hash = ?, password_salt = ?, password_iterations = ?,
+           must_change_password = 0, updated_at = ?
+       WHERE id = ? AND username = 'admin'`,
+    ).bind(
+      password.hash,
+      password.salt,
+      password.iterations,
+      timestamp,
+      target.id,
+    ),
+    db.prepare('DELETE FROM sessions WHERE member_id = ?').bind(target.id),
+    db.prepare(
+      `INSERT INTO account_security_audit
+         (id, actor_member_id, actor_kind, target_member_id, action, created_at)
+       VALUES (?, ?, 'member', ?, 'operational_admin_password_reset', ?)`,
+    ).bind(crypto.randomUUID(), actor.id, target.id, timestamp),
+  ]);
+  if (!result[0]?.meta?.changes) {
+    throw new AppError(
+      409,
+      'operational_admin_unavailable',
+      'Operational administrator recovery is unavailable.',
+    );
+  }
+  return { username: 'admin', sessionsRevoked: true };
 }
 
 export async function listAdminEvents(db) {
@@ -164,6 +272,13 @@ export async function updateEvent(db, eventId, input) {
     'SELECT * FROM events WHERE id = ?',
   ).bind(eventId).first();
   if (!existing) throw new AppError(404, 'event_not_found', 'Event not found.');
+  if (existing.source_type === 'google_sheet') {
+    throw new AppError(
+      409,
+      'source_managed_event',
+      'Update this fixture in the authoritative spreadsheet.',
+    );
+  }
 
   const allowedStatuses = ['draft', 'published', 'open', 'closed', 'completed'];
   const status = input.status === undefined
@@ -265,8 +380,8 @@ export async function correctBooking(
       : null;
   if (!status) throw new AppError(400, 'invalid_status', 'Invalid booking status.');
   const dietaryRequirements = input.dietaryRequirements === undefined
-    ? existing.dietary_requirements
-    : String(input.dietaryRequirements || '').trim().slice(0, 500) || null;
+    ? normaliseDietaryChoice(existing.dietary_requirements)
+    : normaliseDietaryChoice(input.dietaryRequirements);
   const buggyRequired = input.buggyRequired === undefined
     ? Boolean(existing.buggy_required)
     : Boolean(input.buggyRequired);
@@ -354,7 +469,8 @@ export async function correctBooking(
 function mapMember(row) {
   return {
     id: row.id,
-    email: row.email,
+    email: row.username ? null : row.email,
+    username: row.username || null,
     displayName: row.display_name,
     role: row.role,
     status: row.status,

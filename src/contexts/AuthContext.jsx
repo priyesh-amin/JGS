@@ -26,8 +26,14 @@ export function AuthProvider({ children }) {
     refreshSession();
   }, [refreshSession]);
 
-  const login = useCallback(async (email, password) => {
-    const result = await api.post('/api/auth/login', { email, password });
+  useEffect(() => {
+    const clearExpiredSession = () => setUser(null);
+    window.addEventListener('jgs:unauthenticated', clearExpiredSession);
+    return () => window.removeEventListener('jgs:unauthenticated', clearExpiredSession);
+  }, []);
+
+  const login = useCallback(async (identifier, password) => {
+    const result = await api.post('/api/auth/login', { identifier, password });
     setUser(result.user);
     return result.user;
   }, []);

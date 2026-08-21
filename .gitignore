@@ -14,6 +14,17 @@ dist-ssr
 .dev.vars
 .wrangler/
 .tmp/
+wrangler.jsonc
+wrangler.fixture-sync.jsonc
+
+# Generated deployment and verification artefacts
+cf_deployments.txt
+output.json
+.lighthouseci/
+playwright-report/
+test-results/
+coverage/
+*.patch
 
 # Editor directories and files
 .vscode/*

@@ -31,7 +31,7 @@ export function eventAvailability(event, now = new Date()) {
     };
   }
 
-  if (!opensAt || !closesAt) {
+  if (!opensAt || !closesAt || !cancellationClosesAt) {
     return {
       visibility: 'visible',
       registration: 'unavailable',
@@ -39,6 +39,15 @@ export function eventAvailability(event, now = new Date()) {
         ? 'open'
         : 'closed',
       reason: 'configuration_required',
+    };
+  }
+
+  if (current >= cancellationClosesAt) {
+    return {
+      visibility: 'visible',
+      registration: 'closed',
+      cancellation: 'closed',
+      reason: 'cancellation_closed',
     };
   }
 
@@ -117,6 +126,7 @@ export function publicEvent(event, booking, now = new Date()) {
     cancellationClosesAt: event.cancellation_closes_at,
     timezone: event.timezone,
     status: event.status,
+    attendeeCount: Number(event.attendee_count || 0),
     bookingFields: safeJson(event.booking_fields_json, {}),
     availability,
     booking: booking
