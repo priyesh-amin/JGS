@@ -126,7 +126,7 @@ def verify_api(deployment_url: str) -> None:
             ) from error
 
 
-def deploy(project: Path, branch: str) -> None:
+def deploy(project: Path, branch: str, production: bool = False) -> None:
     npx = command("npx")
     whoami = subprocess.run(
         [npx, "--no-install", "wrangler", "whoami"],
@@ -167,7 +167,10 @@ def deploy(project: Path, branch: str) -> None:
     urls = re.findall(r"https://[^\s]+\.pages\.dev", result.stdout + result.stderr)
     if not urls:
         raise RuntimeError("Deployment completed without a verifiable Pages URL.")
-    verify_api(urls[-1].rstrip("/"))
+    verification_origin = (
+        f"https://{PROJECT_NAME}.pages.dev" if production else urls[-1].rstrip("/")
+    )
+    verify_api(verification_origin)
     print("Deployment and Pages Functions JSON-route verification passed.")
 
 
@@ -199,7 +202,7 @@ def main() -> int:
         assert_function_package(project)
         print("Local Pages assets and Functions packaging verification passed.")
         if args.deploy:
-            deploy(project, args.branch)
+            deploy(project, args.branch, production=args.production)
         else:
             print("Dry run complete; no external deployment was attempted.")
         return 0
