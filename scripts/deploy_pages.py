@@ -63,6 +63,8 @@ def run_checked(arguments: list[str], cwd: Path, *, capture: bool = False):
         cwd=cwd,
         check=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         capture_output=capture,
     )
 
@@ -121,6 +123,8 @@ def deploy(project: Path, branch: str) -> None:
         [npx, "--no-install", "wrangler", "whoami"],
         cwd=project,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         capture_output=True,
     )
     if whoami.returncode != 0:
@@ -143,6 +147,8 @@ def deploy(project: Path, branch: str) -> None:
         ],
         cwd=project,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         capture_output=True,
     )
     if result.returncode != 0:
