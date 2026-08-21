@@ -2,7 +2,7 @@
 
 | ID | Risk | Likelihood | Impact | Mitigation | Release status |
 |---|---|---:|---:|---|---|
-| R1 | Incorrect member-to-email migration lets the wrong person access an account | Medium | Critical | Authorised roster only; disabled-by-default import; committee verification; audit log | Open: roster required |
+| R1 | Incorrect member-to-email migration lets the wrong person access an account | Medium | Critical | Authorised roster only; disabled-by-default import; committee verification; audit log | Roster confirmed: 56 members; production import pending |
 | R2 | Duplicate or concurrent requests create multiple active bookings | Medium | Critical | Unique member/event constraint; versioned writes; idempotency keys; concurrency tests | Mitigated locally: concurrent test passed |
 | R3 | Client-side tampering changes another member’s booking | Medium | Critical | Server derives member from session; ownership predicates; forged-request tests | Mitigated locally: role/forgery tests passed |
 | R4 | Wrong event timezone or deadline accepts/rejects a valid booking | Medium | High | ISO timestamps; IANA timezone; backend checks; boundary tests; admin display | Open: September values required |
@@ -14,5 +14,5 @@
 | R10 | Legacy sync overwrites configured booking windows | Medium | High | Explicit optional source fields; preserve configured values when source omits them; idempotency tests | Mitigated locally: rerun test passed |
 | R11 | Authentication brute force or stolen session | Medium | High | PBKDF2, login throttling, HttpOnly/Secure/SameSite cookie, expiry, logout revocation | Mitigated locally; production HTTPS validation pending |
 | R12 | Lack of production D1 authority prevents activation | High | High | Complete local implementation/mocks; document exact binding and migration steps | Blocker |
-| R13 | Existing unrelated functionality regresses | Medium | Medium | Baseline screenshots/build; route smoke tests; final lint/build/browser checks | Mitigated locally: lint/test/build/browser passed |
+| R13 | Existing unrelated functionality regresses | Medium | Medium | Baseline screenshots/build; route smoke tests; final lint/build/browser checks | Lint, test, build and API checks passed; user accepted preview; automated browser rerun blocked by Windows sandbox |
 | R14 | Members are confused during Google Form cutover | Medium | Medium | Single website CTA; clear status; staged September pilot; documented rollback | Open |

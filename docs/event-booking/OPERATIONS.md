@@ -1,60 +1,128 @@
 # Secure booking operations
 
-## Configuration required before production
+## Configuration required before external deployment
 
-Do not publish the secure booking routes until every item below is supplied and
-validated:
+Do not run remote migration, Worker, Pages or Google deployment commands until
+Priyesh explicitly approves the external decision pack. Then verify every item
+below in Preview before Production:
 
-1. Create a Cloudflare D1 database named `jgs-secure-booking` and obtain its
-   real database ID.
-2. Bind that database to the existing Pages project `jaguargolfsociety` as
-   `DB` in both Preview and Production.
+1. Read back the intended Cloudflare account, Pages project, Worker and D1
+   database. Reuse approved existing resources; create a missing resource only
+   with separate owner authority.
+2. Bind the approved D1 database to the Pages project as `DB` in both Preview
+   and Production without copying its identifier into source control.
 3. Set `APP_ORIGIN` to the exact HTTPS production origin.
 4. Set a one-time, high-entropy `BOOTSTRAP_TOKEN`.
 5. Confirm `MASTER_FIXTURES_CSV_URL` is the authorised fixture CSV.
-6. Confirm `DEFAULT_CANCELLATION_CUTOFF_DAYS` (seven by default). This fallback
-   applies only where neither the spreadsheet nor an administrator has set an
-   event-specific cancellation timestamp.
-7. Deploy `integrations/google-apps-script/BookingWebhook.gs` as a web app,
+6. Confirm `MEMBER_BALANCES_CSV_URL` is Chetan's authorised balance sheet
+   and that `Sheet1!G1` contains the latest reconciliation date as a real
+   date cell.
+7. Supply `CancellationClosesAt` as strict `DD/MM/YYYY`, `YYYY-MM-DD`, or an exact timezone-bearing timestamp for every fixture where
+   online cancellation is intended. WP1 does not infer a cancellation deadline.
+8. Deploy `integrations/google-apps-script/BookingWebhook.gs` as a web app,
    configure its `SPREADSHEET_ID` and `BOOKING_SYNC_TOKEN` script properties,
    and supply the resulting `BOOKING_SYNC_WEBHOOK_URL` plus the same
    `BOOKING_SYNC_TOKEN` to Cloudflare Pages.
-8. Supply the authorised initial administrator email and approved member
+9. Supply the authorised initial administrator email and approved member
    roster. Create imported accounts disabled until committee verification.
-9. Confirm exact September publication, registration, and cancellation
+10. Confirm exact September publication, registration, and cancellation
    timestamps in `Europe/London`.
-10. Supply authorised HTTPS finance links for each applicable member.
+11. Supply authorised HTTPS finance links for each applicable member.
+12. Supply approved administrator-only Google Sheets document URLs through
+   `FIXTURES_WORKBOOK_URL`, `LEADERBOARDS_WORKBOOK_URL`,
+   `MEMBER_BALANCES_WORKBOOK_URL`, `BOOKING_MANAGEMENT_WORKBOOK_URL`, and
+   `MEMBER_FINANCE_LINKS_WORKBOOK_URL`. Missing links remain unavailable.
+13. Confirm `BOOKING_SYNC_INCLUDE_DIETARY` is absent or false. Dietary data is
+   not approved for the operational spreadsheet output.
 
 No production IDs, accounts, deadlines, or secrets belong in source control.
 
-## Migration and preview
+## Authoritative fixture automation
+
+The `DB_Fixtures` tab remains the authoritative event-information source.
+Cloudflare re-reads and validates its public CSV through two deterministic
+paths that share the same per-fixture classifier and idempotent reconciliation:
+
+- `jgs-fixture-sync` runs at minute 7 of every hour as a reconciliation check;
+- the installable Google Apps Script edit trigger sends only an authenticated
+  refresh notification immediately after an edit to `DB_Fixtures`. The Worker
+  ignores notification content and re-fetches the approved canonical CSV.
+
+After the external gate, deploy the Worker from the reviewed commit:
+
+```powershell
+npx wrangler deploy --config wrangler.fixture-sync.jsonc
+npx wrangler secret put FIXTURE_SYNC_TOKEN --config wrangler.fixture-sync.jsonc
+```
+
+In the authoritative workbook, open **Extensions > Apps Script**, add
+`integrations/google-apps-script/FixtureSyncTrigger.gs`, then set these Script
+properties:
+
+- `CLOUDFLARE_FIXTURE_SYNC_URL`: the deployed Worker URL ending `/sync`;
+- `FIXTURE_SYNC_TOKEN`: the same high-entropy value stored as the encrypted
+  Cloudflare Worker secret.
+
+Run `installFixtureSyncTrigger` once and approve the requested permissions.
+Then run `testFixtureSync` once and confirm a successful execution. The token
+must be transferred privately and must never be committed or pasted into chat.
+
+This automation imports only validated source values. It does not infer booking
+windows from `Deadline` text. Before booking opens, the committee must keep
+event statuses current and supply `RegistrationOpensAt`,
+`RegistrationClosesAt`, and (where cancellation is intended)
+`CancellationClosesAt` as strict UK `DD/MM/YYYY` (with leading zeroes), ISO
+`YYYY-MM-DD`, or exact timezone-bearing timestamps. Date-only opening is
+start-of-day and closing is end-of-day in Europe/London. US month-first,
+single-digit slash, natural-language, missing or timezone-less ambiguous values
+fail closed. The approved
+12 fixture IDs are checked on every run so omitted rows are still reported.
+
+## Local release check, migration and preview
 
 From a clean checkout:
 
 ```powershell
 npm ci
 npm run check
-npx wrangler d1 migrations apply jgs-secure-booking --remote
+python scripts/deploy_pages.py
 ```
 
-Before applying the migration, export or back up the target D1 database and
-record the deployed commit SHA. The migration is additive: it creates only the
-new booking tables. It does not modify legacy website content.
+The Python command is a local dry run: it builds a clean temporary copy and
+proves Pages Functions and `/api/*` routing are present. It does not deploy.
 
-Deploy the branch to a Cloudflare Pages preview using the existing
-`jaguargolfsociety` project. Confirm the Preview `DB` binding and preview
-`APP_ORIGIN` match the preview URL before exercising mutations.
+After approval, export or back up the exact target D1 database, store the backup
+outside the repository, and record its checksum plus the reviewed commit SHA.
+Only then apply the reviewed migrations remotely. Migrations `0001` through
+`0003` create the secure booking model, account-security audit state, Hall of
+Fame snapshot, and leased booking-output fields. Verify the migration ledger and
+table/column invariants immediately after applying them; do not print member
+rows.
 
-## First administrator
+Deploy the branch to a Cloudflare Pages preview from the project root, not from
+`dist/` alone, so the root `functions/` directory is uploaded. The reviewed
+helper invocation is:
 
-Call `POST /api/setup/bootstrap` once with:
+```powershell
+python scripts/deploy_pages.py --deploy
+```
+
+Confirm the Preview `DB` binding and `APP_ORIGIN` match the preview origin.
+Reject the preview if `/api/auth/session` or `/api/leaderboards` returns SPA
+HTML instead of the expected API status and JSON content type.
+
+## Empty-environment bootstrap only
+
+Do not run bootstrap against an environment that already has the approved
+shared operational administrator. On a confirmed empty isolated environment,
+call `POST /api/setup/bootstrap` once with:
 
 - header `X-Bootstrap-Token`;
 - exact same-origin `Origin` header;
-- JSON `displayName`, `email`, and a password of at least 12 characters.
+- JSON `displayName`, `email`, and a password of at least 11 characters.
 
 The endpoint refuses to run after the first member exists. After successful
-bootstrap, rotate or remove `BOOTSTRAP_TOKEN`.
+bootstrap, remove `BOOTSTRAP_TOKEN` and verify the approved account/role model.
 
 ## Production validation
 
@@ -71,6 +139,9 @@ bootstrap, rotate or remove `BOOTSTRAP_TOKEN`.
 8. Inspect production browser console, Pages Function logs, D1 state, and
    spreadsheet output.
 9. Enable member access only after the committee signs off the confirmed list.
+10. Before Production, repeat the preview backup/migration/API/browser/log checks
+    and require the explicit production approval flag. Deploying assets alone is
+    not acceptance.
 
 ## Rollback
 

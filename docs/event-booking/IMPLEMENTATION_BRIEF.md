@@ -18,9 +18,9 @@ integration failures from trusted server-side endpoints.
 - Database uniqueness and compare-and-swap versioning protect against retries,
   double clicks, and concurrent requests.
 - Registration windows and event-specific cancellation windows are explicit
-  ISO-8601 timestamps with a configured IANA timezone. Where cancellation is
-  otherwise unset, synchronisation applies the documented configurable
-  seven-day working fallback; no guessed registration-opening default is used.
+  ISO-8601 date-times with an explicit UTC offset. Missing values fail closed;
+  synchronisation never derives booking-critical timestamps from `Deadline`
+  text or applies a cancellation fallback.
 - The committee spreadsheet remains the event-information source.
 - The website becomes the normal member booking interface; Google Forms are not
   part of the new member flow.
