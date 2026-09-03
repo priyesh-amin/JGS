@@ -263,6 +263,7 @@ function CreateMemberForm({ onComplete }) {
 }
 
 function MemberEditor({ member, onComplete }) {
+  const [email, setEmail] = useState(member.email || '');
   const [role, setRole] = useState(member.role);
   const [status, setStatus] = useState(member.status);
   const [financeUrl, setFinanceUrl] = useState(member.financeUrl || '');
@@ -274,7 +275,7 @@ function MemberEditor({ member, onComplete }) {
     setSaving(true);
     setError('');
     try {
-      await api.patch(`/api/admin/members/${encodeURIComponent(member.id)}`, { role, status, financeUrl });
+      await api.patch(`/api/admin/members/${encodeURIComponent(member.id)}`, { email, role, status, financeUrl });
       await onComplete(`${member.displayName} was updated.`);
     } catch (saveError) {
       setError(saveError.message || 'The member could not be updated.');
@@ -314,12 +315,14 @@ function MemberEditor({ member, onComplete }) {
         <p className="mt-4 rounded-lg bg-surface-light p-3 text-sm text-gray-600">This fixed operational account is managed only through the private recovery control.</p>
       ) : (
         <>
-          <div className="mt-4 grid gap-3 md:grid-cols-[160px_160px_1fr_auto]">
+          <div className="mt-4 grid gap-3 md:grid-cols-2 lg:grid-cols-[minmax(220px,1fr)_140px_140px_minmax(220px,1fr)_auto]">
+            <TextField label="Email address" value={email} onChange={setEmail} type="email" required />
             <SelectField label="Role" value={role} onChange={setRole} options={['member', 'admin']} />
             <SelectField label="Status" value={status} onChange={setStatus} options={['active', 'disabled']} />
             <TextField label="Personal finance URL" value={financeUrl} onChange={setFinanceUrl} type="url" />
             <button type="button" onClick={save} disabled={saving} className="min-h-11 self-end rounded-lg bg-jaguar-green px-5 py-3 text-sm font-bold text-white disabled:opacity-60">Save</button>
           </div>
+          <p className="mt-2 text-xs text-gray-500">If the email changes, the member will be signed out and must use the new address next time. Google Sign-In can then be linked again.</p>
           <div className="mt-4 flex flex-col gap-3 border-t border-border-light pt-4 sm:flex-row sm:items-end">
             <div className="flex-1">
               <TextField label="New password" value={temporaryPassword} onChange={setTemporaryPassword} type="password" minLength={11} autoComplete="new-password" />
