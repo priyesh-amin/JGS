@@ -271,6 +271,10 @@ function MemberEditor({ member, onComplete }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    setEmail(member.email || '');
+  }, [member.email]);
+
   const save = async () => {
     setSaving(true);
     setError('');
