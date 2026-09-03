@@ -434,3 +434,82 @@ test('the fixed username account is immutable through generic member update', as
   );
   assert.equal(batchCalls, 0);
 });
+
+test('member email changes preserve the account and revoke stale authentication', async () => {
+  const operations = [];
+  const target = {
+    id: 'member-1',
+    email: 'old@example.invalid',
+    username: null,
+    display_name: 'Member One',
+    role: 'member',
+    status: 'active',
+    must_change_password: 0,
+    finance_url: null,
+    google_subject: 'google-subject-1',
+  };
+  const db = {
+    prepare(sql) {
+      return statement(sql, { first: () => target }, operations);
+    },
+    async batch(statements) {
+      operations.push({ type: 'batch', statements });
+      return statements.map(() => ({ meta: { changes: 1 } }));
+    },
+  };
+
+  const result = await updateMember(
+    db,
+    target.id,
+    { email: ' New@Example.Invalid ' },
+    { id: 'admin-1', role: 'admin' },
+    RECOVERY_EMAIL,
+    new Date('2026-09-03T12:00:00.000Z'),
+  );
+
+  assert.equal(result.id, target.id);
+  assert.equal(result.email, 'new@example.invalid');
+  const statements = operations[0].statements;
+  assert.equal(statements.length, 3);
+  assert.match(statements[0].sql, /SET email = \?/);
+  assert.match(statements[0].sql, /google_subject = NULL/);
+  assert.match(statements[0].sql, /WHERE id = \? AND username IS NULL/);
+  assert.deepEqual(statements[0].values.slice(0, 2), [
+    'new@example.invalid',
+    target.display_name,
+  ]);
+  assert.match(statements[1].sql, /DELETE FROM sessions/);
+  assert.match(statements[2].sql, /DELETE FROM password_reset_tokens/);
+});
+
+test('member email changes return a clear conflict for duplicate addresses', async () => {
+  const target = {
+    id: 'member-1',
+    email: 'old@example.invalid',
+    username: null,
+    display_name: 'Member One',
+    role: 'member',
+    status: 'active',
+    must_change_password: 0,
+    finance_url: null,
+  };
+  const db = {
+    prepare(sql) {
+      return statement(sql, { first: () => target }, []);
+    },
+    async batch() {
+      throw new Error('UNIQUE constraint failed: members.email');
+    },
+  };
+
+  await assert.rejects(
+    updateMember(
+      db,
+      target.id,
+      { email: 'used@example.invalid' },
+      { id: 'admin-1', role: 'admin' },
+      RECOVERY_EMAIL,
+    ),
+    (error) => error.status === 409 && error.code === 'email_exists',
+  );
+});

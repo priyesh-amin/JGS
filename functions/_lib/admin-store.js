@@ -122,16 +122,34 @@ export async function updateMember(
   const displayName = input.displayName === undefined
     ? existing.display_name
     : requireString(input.displayName, 'Display name', { max: 120 });
+  const email = input.email === undefined
+    ? existing.email
+    : normaliseEmail(input.email);
+  const emailChanged = email !== normaliseEmail(existing.email);
   const financeUrl = input.financeUrl === undefined
     ? existing.finance_url
     : validateFinanceUrl(input.financeUrl);
   const timestamp = now.toISOString();
 
-  await db.batch([
-    db.prepare(
+  const update = emailChanged
+    ? db.prepare(
+      `UPDATE members
+       SET email = ?, display_name = ?, role = ?, status = ?, finance_url = ?,
+           google_subject = NULL, google_linked_at = NULL, updated_at = ?
+       WHERE id = ? AND username IS NULL`,
+    ).bind(
+      email,
+      displayName,
+      nextRole,
+      nextStatus,
+      financeUrl,
+      timestamp,
+      memberId,
+    )
+    : db.prepare(
       `UPDATE members
        SET display_name = ?, role = ?, status = ?, finance_url = ?, updated_at = ?
-       WHERE id = ?`,
+       WHERE id = ? AND username IS NULL`,
     ).bind(
       displayName,
       nextRole,
@@ -139,15 +157,44 @@ export async function updateMember(
       financeUrl,
       timestamp,
       memberId,
-    ),
-    ...(nextStatus === 'disabled'
-      ? [db.prepare('DELETE FROM sessions WHERE member_id = ?').bind(memberId)]
-      : []),
-  ]);
+    );
+
+  try {
+    await db.batch([
+      update,
+      ...(emailChanged || nextStatus === 'disabled'
+        ? [db.prepare('DELETE FROM sessions WHERE member_id = ?').bind(memberId)]
+        : []),
+      ...(emailChanged
+        ? [
+          db.prepare(
+            'DELETE FROM password_reset_tokens WHERE member_id = ?',
+          ).bind(memberId),
+        ]
+        : []),
+    ]);
+  } catch (error) {
+    if (String(error?.message || error).includes('UNIQUE constraint failed')) {
+      throw new AppError(
+        409,
+        'email_exists',
+        'A member account already uses this email address.',
+      );
+    }
+    throw error;
+  }
+
+  if (emailChanged) {
+    console.info('member_email_changed', {
+      actorMemberId: actor.id,
+      targetMemberId: memberId,
+      changedAt: timestamp,
+    });
+  }
 
   return {
     id: memberId,
-    email: existing.username ? null : existing.email,
+    email,
     username: existing.username || null,
     displayName,
     role: nextRole,

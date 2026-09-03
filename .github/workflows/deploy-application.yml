@@ -1,0 +1,46 @@
+name: Deploy JGS Application
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/deploy-application.yml'
+      - 'functions/**'
+      - 'public/**'
+      - 'src/**'
+      - 'index.html'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  verify-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout reviewed source
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install and verify
+        run: |
+          npm ci
+          npm run check
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          gitHubToken: ${{ secrets.GH_PAT }}
+          wranglerVersion: '4'
+          command: pages deploy dist --project-name=jaguargolfsociety --branch=main
