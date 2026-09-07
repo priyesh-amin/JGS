@@ -98,6 +98,28 @@ async function getBooking(db, memberId, eventId) {
   ).bind(memberId, eventId).first();
 }
 
+async function confirmedAttendees(db, eventId) {
+  const result = await db.prepare(
+    `SELECT m.display_name, m.email, b.buggy_required,
+            b.dietary_requirements, b.preferences_json
+     FROM bookings b
+     JOIN members m ON m.id = b.member_id
+     WHERE b.event_id = ? AND b.status = 'registered'
+     ORDER BY m.display_name COLLATE NOCASE`,
+  ).bind(eventId).all();
+  return result.results.map((row) => ({
+    displayName: row.display_name,
+    email: row.email,
+    buggyRequired: Boolean(row.buggy_required),
+    dietaryRequirements: row.dietary_requirements || '',
+    preferences: safePreferences(row.preferences_json),
+  }));
+}
+
+function safePreferences(value) {
+  try { return value ? JSON.parse(value) : {}; } catch { return {}; }
+}
+
 export async function listEventsForMember(db, memberId, now = new Date()) {
   const result = await db.prepare(
     `SELECT e.*,
@@ -139,7 +161,10 @@ export async function getEventForMember(db, memberId, eventId, now = new Date())
   if (response.availability.visibility !== 'visible') {
     throw new AppError(404, 'event_not_found', 'Event not found.');
   }
-  return response;
+  return {
+    ...response,
+    attendees: await confirmedAttendees(db, eventId),
+  };
 }
 
 export async function registerMember(

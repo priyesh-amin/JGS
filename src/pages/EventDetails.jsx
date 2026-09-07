@@ -88,7 +88,10 @@ export default function EventDetails() {
               />
             </div>
             <div className="mt-6 grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
-              <AttendancePanel attendeeCount={event.attendeeCount} />
+              <AttendancePanel
+                attendeeCount={event.attendeeCount}
+                attendees={event.attendees}
+              />
               <PaymentPanel
                 event={event}
                 balance={balance}
@@ -367,16 +370,61 @@ function formatDateTime(value, timezone) {
     timeZone: timezone || 'Europe/London',
   }).format(new Date(value));
 }
-function AttendancePanel({ attendeeCount }) {
+function AttendancePanel({ attendeeCount, attendees = [] }) {
+  const members = Array.isArray(attendees) ? attendees : [];
+  const count = Number(attendeeCount || 0);
+
   return (
     <section className="rounded-2xl border border-border-light bg-white p-6 shadow-lg" aria-labelledby="attendance-heading">
       <p className="text-xs font-black uppercase tracking-[0.2em] text-trophy-gold">Confirmed places</p>
       <h2 id="attendance-heading" className="mt-1 text-2xl font-serif font-black text-midnight-navy">Attendance</h2>
-      <p className="mt-5 text-3xl font-black text-jaguar-green">{attendeeCount || 0}</p>
-      <p className="mt-2 text-sm text-gray-600">Member names and booking details are available only to administrators.</p>
+      <div className="mt-5 flex items-baseline gap-2">
+        <p className="text-3xl font-black text-jaguar-green">{count}</p>
+        <span className="text-sm font-semibold text-gray-600">members confirmed</span>
+      </div>
+      {members.length > 0 ? (
+        <>
+          <p className="mt-5 text-sm font-black text-midnight-navy">Confirmed members</p>
+          <ul className="mt-3 grid gap-2 sm:grid-cols-2" aria-label="Confirmed members">
+            {members.map((member, index) => (
+              <li
+                key={`${member.email}-${index}`}
+                className="rounded-lg bg-surface-light px-3 py-3 text-sm text-midnight-navy"
+              >
+                <div className="flex items-center gap-2 font-bold">
+                  <span className="material-symbols-outlined text-lg text-jaguar-green" aria-hidden="true">person</span>
+                  <span>{member.displayName}</span>
+                </div>
+                <div className="mt-2 space-y-1 pl-7 text-xs text-gray-600">
+                  <p><span className="font-bold text-midnight-navy">Email:</span> {member.email}</p>
+                  <p><span className="font-bold text-midnight-navy">Buggy:</span> {member.buggyRequired ? 'Required' : 'Not required'}</p>
+                  <p><span className="font-bold text-midnight-navy">Dietary:</span> {member.dietaryRequirements || 'Not recorded'}</p>
+                  {Object.entries(member.preferences || {}).map(([key, value]) => (
+                    <p key={key}><span className="font-bold text-midnight-navy">{preferenceLabel(key)}:</span> {String(value)}</p>
+                  ))}
+                </div>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-4 text-xs leading-5 text-gray-500">
+            Contact and booking details are visible to signed-in members to help coordinate travel and lifts.
+          </p>
+        </>
+      ) : count > 0 ? (
+        <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
+          The confirmed member names are temporarily unavailable. Please refresh the page.
+        </p>
+      ) : (
+        <p className="mt-4 text-sm text-gray-600">No members have confirmed yet.</p>
+      )}
     </section>
   );
 }
+
+function preferenceLabel(value) {
+  return value.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').replace(/^./, (character) => character.toUpperCase());
+}
+
 function PaymentPanel({ event, balance, error }) {
   const allocation = balance?.allocations?.find(
     (item) => item.eventId === event.id,

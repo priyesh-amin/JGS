@@ -26,8 +26,11 @@ integration failures from trusted server-side endpoints.
   part of the new member flow.
 - Spreadsheet delivery is idempotent and retryable. A spreadsheet outage does
   not erase or roll back a valid website booking.
-- Members see only their own booking and finance-link state. Administrators see
-  the confirmed-attendee list.
+- Members see their own booking and finance-link state, plus the names of
+  confirmed members for each visible event so they can coordinate travel and
+  lifts. Booking preferences, dietary choices and payment details remain
+  private. Administrators see the full confirmed-attendee list and operational
+  booking fields.
 - No production identifiers, member records, deadlines, or credentials are
   invented.
 
@@ -62,4 +65,3 @@ Production activation remains gated on the configuration listed in
 7. Enable September events only after all release gates pass.
 8. Retain the old Google Forms as an unpublished rollback route until the first
    event closes successfully.
-

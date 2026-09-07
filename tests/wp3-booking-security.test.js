@@ -8,6 +8,7 @@ import {
 } from '../functions/_lib/admin-store.js';
 import {
   cancelMember,
+  getEventForMember,
   registerMember,
 } from '../functions/_lib/booking-store.js';
 
@@ -209,6 +210,89 @@ test('member form exposes an accessible required two-choice selector with no def
   assert.match(source, /checked=\{dietaryChoice === choice\}/);
   assert.match(source, /disabled=\{submitting \|\| !dietaryChoice\}/);
   assert.doesNotMatch(source, /id="dietary-requirements"/);
+});
+
+test('member event details expose confirmed names without private booking data', async () => {
+  const db = {
+    prepare(sql) {
+      return {
+        bind() {
+          return {
+            async first() {
+              if (sql.includes('FROM events e')) {
+                return {
+                  ...event,
+                  title: 'September Monthly',
+                  venue: 'Jaguar Golf Club',
+                  event_date: '2026-09-12',
+                  attendee_count: 2,
+                };
+              }
+              if (sql.includes('FROM bookings WHERE')) return null;
+              throw new Error(`Unexpected first query: ${sql}`);
+            },
+            async all() {
+              assert.match(sql, /JOIN members m/);
+              assert.match(sql, /b\.status = 'registered'/);
+              return {
+                results: [
+                  {
+                    display_name: 'Alice Member',
+                    email: 'alice@example.invalid',
+                    buggy_required: 1,
+                    dietary_requirements: 'Veg',
+                    preferences_json: '{"lift":"Needed"}',
+                  },
+                  {
+                    display_name: 'Bob Member',
+                    email: 'bob@example.invalid',
+                    buggy_required: 0,
+                    dietary_requirements: 'Non-veg',
+                    preferences_json: '{}',
+                  },
+                ],
+              };
+            },
+          };
+        },
+      };
+    },
+  };
+
+  const result = await getEventForMember(
+    db,
+    'member-one',
+    event.id,
+    now,
+  );
+
+  assert.deepEqual(result.attendees, [
+    {
+      displayName: 'Alice Member',
+      email: 'alice@example.invalid',
+      buggyRequired: true,
+      dietaryRequirements: 'Veg',
+      preferences: { lift: 'Needed' },
+    },
+    {
+      displayName: 'Bob Member',
+      email: 'bob@example.invalid',
+      buggyRequired: false,
+      dietaryRequirements: 'Non-veg',
+      preferences: {},
+    },
+  ]);
+});
+
+test('attendance panel renders the confirmed member names for signed-in users', () => {
+  const source = readFileSync(
+    new URL('../src/pages/EventDetails.jsx', import.meta.url),
+    'utf8',
+  );
+  assert.match(source, /attendees=\{event\.attendees\}/);
+  assert.match(source, /Confirmed members/);
+  assert.match(source, /Contact and booking details are visible to signed-in members/);
+  assert.doesNotMatch(source, /available only to administrators/);
 });
 
 test('sheet-owned fixture fields cannot be overridden through admin update', async () => {
