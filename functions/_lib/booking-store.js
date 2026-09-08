@@ -28,7 +28,7 @@ export function normaliseDietaryChoice(value) {
   return value;
 }
 
-export function normalisePreferences(input) {
+export function normalisePreferences(input, { allowMissingDietary = false } = {}) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     throw invalidBookingInput('Booking details must be a JSON object.');
   }
@@ -38,9 +38,7 @@ export function normalisePreferences(input) {
     throw invalidBookingInput('Buggy required must be true or false.');
   }
 
-  const dietaryRequirements = normaliseDietaryChoice(
-    input.dietaryRequirements,
-  );
+  const dietaryRequirements = allowMissingDietary && !input.dietaryRequirements ? null : normaliseDietaryChoice(input.dietaryRequirements);
 
   const extra = input.preferences ?? {};
   if (!extra || typeof extra !== 'object' || Array.isArray(extra)) {
