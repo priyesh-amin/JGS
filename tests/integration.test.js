@@ -1,5 +1,7 @@
 ﻿import assert from 'node:assert/strict';
 import test from 'node:test';
+import vm from 'node:vm';
+import { readFileSync } from 'node:fs';
 import { auditBookingOutput, deliverPendingOutbox, queueBookingReconciliation, recordBookingDeliveryStatus, retryPendingOutbox } from '../functions/_lib/integration.js';
 
 function mockContext(fetchImplementation) {
@@ -10,8 +12,49 @@ function mockContext(fetchImplementation) {
     async first() { if (/SELECT o\.\*/.test(sql)) return item; throw new Error(`Unexpected first: ${sql}`); },
     async run() { updates.push({ sql, values }); return { meta: { changes: 1 } }; },
   }; } }; } };
-  return { context: { env: { DB: db, BOOKING_SYNC_WEBHOOK_URL: 'https://script.google.com/macros/s/example-deployment/exec', BOOKING_SYNC_TOKEN: 'test-secret' } }, updates, installFetch() { const original = globalThis.fetch; globalThis.fetch = fetchImplementation; return () => { globalThis.fetch = original; }; } };
+  return { item, context: { env: { DB: db, BOOKING_SYNC_WEBHOOK_URL: 'https://script.google.com/macros/s/example-deployment/exec', BOOKING_SYNC_TOKEN: 'test-secret' } }, updates, installFetch() { const original = globalThis.fetch; globalThis.fetch = fetchImplementation; return () => { globalThis.fetch = original; }; } };
 }
+
+test('persisted member cancellations satisfy the real adapter contract on retry', async () => {
+  const adapter = vm.createContext({});
+  vm.runInContext(readFileSync(new URL('../integrations/google-apps-script/BookingWebhook.gs', import.meta.url), 'utf8'), adapter);
+  let message;
+  const mock = mockContext(async (_url, init) => {
+    const envelope = JSON.parse(init.body);
+    assert.ok(Math.abs(Date.now() / 1000 - envelope.timestamp) < 5);
+    message = JSON.parse(envelope.message);
+    adapter.validatePayload_(message);
+    return Response.json({ ok: true });
+  });
+  mock.item.event_type = 'booking.cancelled';
+  mock.item.payload_json = JSON.stringify({ id: 'booking-1', member_id: 'member-1', event_id: 'event-1', status: 'cancelled', buggy_required: 0, dietary_requirements: 'Veg', registered_at: '2026-09-01T10:00:00Z', cancelled_at: '2026-09-02T10:00:00Z', updated_at: '2026-09-02T10:00:00Z', version: 2 });
+  mock.context.env.BOOKING_SYNC_INCLUDE_DIETARY = 'true';
+  const restore = mock.installFetch();
+  try {
+    // A batch that started over five minutes ago still sends a fresh envelope.
+    const result = await deliverPendingOutbox(mock.context, { now: new Date(Date.now() - 600_000) });
+    assert.equal(result.delivered, 1);
+    assert.equal(message.booking.memberId, 'member-1');
+    assert.equal(message.booking.eventId, 'event-1');
+    assert.equal(message.booking.cancelledAt, '2026-09-02T10:00:00Z');
+    assert.equal(message.booking.updatedAt, '2026-09-02T10:00:00Z');
+    assert.deepEqual(message.operational, { status: 'cancelled', buggyRequired: false, dietaryRequirements: 'Veg' });
+  } finally { restore(); }
+});
+
+test('replaying an old registration does not label newer state with an older version', async () => {
+  let message;
+  const mock = mockContext(async (_url, init) => { message = JSON.parse(JSON.parse(init.body).message); return Response.json({ ok: true }); });
+  mock.item.payload_json = JSON.stringify({ id: 'booking-1', memberId: 'member-1', eventId: 'event-1', status: 'registered', buggyRequired: false, dietaryRequirements: 'Non-veg', version: 1, updatedAt: '2026-09-01T10:00:00Z' });
+  mock.item.booking_status = 'cancelled';
+  mock.context.env.BOOKING_SYNC_INCLUDE_DIETARY = 'true';
+  const restore = mock.installFetch();
+  try {
+    assert.equal((await deliverPendingOutbox(mock.context)).delivered, 1);
+    assert.equal(message.booking.version, 1);
+    assert.deepEqual(message.operational, { status: 'registered', buggyRequired: false, dietaryRequirements: 'Non-veg' });
+  } finally { restore(); }
+});
 
 test('spreadsheet delivery uses a lease and signed envelope without transmitting the static secret', async () => {
   let envelope;

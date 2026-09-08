@@ -41,14 +41,19 @@ async function claimedRecord(db, id, leaseToken) {
 
 function outboundMessage(item, includeDietary) {
   const booking = JSON.parse(item.payload_json);
+  // Member cancellations were queued using database column names. Support
+  // those already-persisted messages as well as registration/admin snapshots.
+  const memberId = booking.memberId ?? booking.member_id;
+  const eventId = booking.eventId ?? booking.event_id;
   return JSON.stringify({
     schemaVersion: 2,
     idempotencyKey: item.idempotency_key,
     eventType: item.event_type,
-    booking: { id: booking.id, memberId: booking.memberId, eventId: booking.eventId, registeredAt: booking.registeredAt || null, cancelledAt: booking.cancelledAt || null, updatedAt: booking.updatedAt, version: Number(booking.version) },
-    member: { id: booking.memberId, email: safeSheetText(item.email, 254), displayName: safeSheetText(item.display_name, 200) },
-    event: { id: booking.eventId, title: safeSheetText(item.event_title, 200), date: item.event_date, venue: safeSheetText(item.venue, 200) },
-    operational: { status: item.booking_status, buggyRequired: Boolean(item.buggy_required), dietaryRequirements: includeDietary ? safeSheetText(item.dietary_requirements, 500) : '' },
+    booking: { id: booking.id, memberId, eventId, registeredAt: booking.registeredAt ?? booking.registered_at ?? null, cancelledAt: booking.cancelledAt ?? booking.cancelled_at ?? null, updatedAt: booking.updatedAt ?? booking.updated_at, version: Number(booking.version) },
+    member: { id: memberId, email: safeSheetText(item.email, 254), displayName: safeSheetText(item.display_name, 200) },
+    event: { id: eventId, title: safeSheetText(item.event_title, 200), date: item.event_date, venue: safeSheetText(item.venue, 200) },
+    // Keep state and version from the same immutable snapshot on retries.
+    operational: { status: booking.status, buggyRequired: Boolean(booking.buggyRequired ?? booking.buggy_required), dietaryRequirements: includeDietary ? safeSheetText(booking.dietaryRequirements ?? booking.dietary_requirements, 500) : '' },
   });
 }
 
@@ -70,7 +75,8 @@ export async function deliverPendingOutbox(context, { limit = 25, now = new Date
     if (!item) continue;
     try {
       const message = outboundMessage(item, context.env.BOOKING_SYNC_INCLUDE_DIETARY === 'true');
-      const timestamp = Math.floor(now.getTime() / 1000);
+      // A long delivery batch must not reuse its start time for later requests.
+      const timestamp = Math.floor(Date.now() / 1000);
       const nonce = crypto.randomUUID();
       const signature = await signMessage(token, timestamp, nonce, message);
       const response = await fetch(webhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ timestamp, nonce, signature, message }) });
