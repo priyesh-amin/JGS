@@ -1,7 +1,8 @@
+import { validateAnswers } from './booking-fields.js';
 import { AppError } from './errors.js';
 import { hashPassword } from './crypto.js';
 import { normaliseEmail, requireString } from './http.js';
-import { normaliseDietaryChoice } from './booking-store.js';
+import { normaliseDietaryChoice, normalisePreferences } from './booking-store.js';
 
 function isRecoveryAccount(member, recoveryEmailValue) {
   if (!member || member.username || !recoveryEmailValue) return false;
@@ -330,6 +331,8 @@ export async function updateEvent(db, eventId, input) {
   }
 
   const allowedStatuses = ['draft', 'published', 'open', 'closed', 'completed'];
+  if (input.version !== undefined && input.version !== existing.version) throw new AppError(409, 'booking_changed', 'This booking changed. Refresh before saving.');
+  if (input.preferences !== undefined) normalisePreferences({...input, dietaryRequirements: input.dietaryRequirements || existing.dietary_requirements, buggyRequired: input.buggyRequired ?? Boolean(existing.buggy_required)});
   const status = input.status === undefined
     ? existing.status
     : allowedStatuses.includes(input.status) ? input.status : null;
@@ -412,7 +415,7 @@ export async function correctBooking(
   now = new Date(),
 ) {
   const existing = await db.prepare(
-    `SELECT b.*, m.email, m.display_name, e.title AS event_title
+    `SELECT b.*, m.email, m.display_name, e.title AS event_title, e.booking_fields_json
      FROM bookings b
      JOIN members m ON m.id = b.member_id
      JOIN events e ON e.id = b.event_id
@@ -422,6 +425,8 @@ export async function correctBooking(
     throw new AppError(404, 'booking_not_found', 'Booking not found.');
   }
 
+  if (input.version !== undefined && input.version !== existing.version) throw new AppError(409, 'booking_changed', 'This booking changed. Refresh before saving.');
+  if (input.preferences !== undefined) normalisePreferences({...input, dietaryRequirements: input.dietaryRequirements || existing.dietary_requirements, buggyRequired: input.buggyRequired ?? Boolean(existing.buggy_required)});
   const status = input.status === undefined
     ? existing.status
     : input.status === 'registered' || input.status === 'cancelled'
@@ -434,6 +439,10 @@ export async function correctBooking(
   const buggyRequired = input.buggyRequired === undefined
     ? Boolean(existing.buggy_required)
     : Boolean(input.buggyRequired);
+  if (input.preferences !== undefined) {
+    const fields=JSON.parse(existing.booking_fields_json || '{}');
+    validateAnswers({...fields,questions:(fields.questions || []).map(q=>({...q,required:false}))},input.preferences);
+  }
   const preferences = input.preferences === undefined
     ? existing.preferences_json
     : JSON.stringify(input.preferences || {});
@@ -456,6 +465,19 @@ export async function correctBooking(
     version: nextVersion,
   };
 
+  const preparationWrites=[];
+  if (input.preparation) {
+    const p=input.preparation;
+    const previous=await db.prepare('SELECT * FROM event_preparation WHERE booking_id=?').bind(existing.id).first();
+    if (Number(p.version || 0)!==Number(previous?.version || 0)) throw new AppError(409,'booking_changed','Preparation changed. Refresh before saving.');
+    const values=['group_name','tee_time','handicap','notes'].map(k=>requireString(p[k] || '',k,{min:0,max:k==='notes'?1000:80}));
+    preparationWrites.push(
+      db.prepare(`INSERT INTO event_preparation (booking_id,group_name,tee_time,handicap,notes,updated_at) VALUES (?,?,?,?,?,?) ON CONFLICT(booking_id) DO UPDATE SET group_name=excluded.group_name,tee_time=excluded.tee_time,handicap=excluded.handicap,notes=excluded.notes,updated_at=excluded.updated_at,version=event_preparation.version+1 WHERE event_preparation.version=?`).bind(existing.id,...values,timestamp,p.version || 0),
+      db.prepare("SELECT json('Record changed') WHERE changes()=0"),
+      db.prepare("INSERT INTO management_audit VALUES (?,?,'preparation',?,'updated',?,?,?)").bind(crypto.randomUUID(),actor.id,existing.id,previous?JSON.stringify(previous):null,JSON.stringify(p),timestamp),
+    );
+  }
+
   try {
     await db.batch([
       db.prepare(
@@ -474,11 +496,12 @@ export async function correctBooking(
         existing.id,
         existing.version,
       ),
+      db.prepare("SELECT json('Record changed') WHERE changes()=0"),
       db.prepare(
         `INSERT INTO booking_audit
            (id, booking_id, actor_member_id, action, before_json,
             after_json, created_at)
-         VALUES (?, ?, ?, 'admin_corrected', ?, ?, ?)`,
+         SELECT ?, ?, ?, 'admin_corrected', ?, ?, ? WHERE changes()=1`,
       ).bind(
         `admin:${existing.id}:${nextVersion}`,
         existing.id,
@@ -501,6 +524,7 @@ export async function correctBooking(
         timestamp,
         timestamp,
       ),
+      ...preparationWrites,
     ]);
   } catch (error) {
     if (String(error?.message || error).includes('UNIQUE constraint failed')) {

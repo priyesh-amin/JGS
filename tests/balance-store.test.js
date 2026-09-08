@@ -113,6 +113,7 @@ test('member balance subtracts only active bookings after reconciliation', async
       MEMBER_BALANCES_CSV_URL: 'https://example.test/balances.csv',
       DB: {
         prepare: () => ({
+          first: async () => ({value: 'legacy'}),
           bind: () => ({ all: async () => ({ results: rows }) }),
         }),
       },

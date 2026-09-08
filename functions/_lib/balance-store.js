@@ -1,3 +1,4 @@
+import { websiteManaged } from './management-mode.js';
 import { AppError } from './errors.js';
 import { parseCsv } from './sheet-sync.js';
 
@@ -138,6 +139,12 @@ export function allocateBalance(balancePence, bookings) {
 }
 
 export async function memberBalance(context, user) {
+  let balancePence, reconciledOn;
+  if (await websiteManaged(context.env.DB)) {
+    const stored = await context.env.DB.prepare('SELECT balance_pence,reconciled_on FROM member_balances WHERE member_id=?').bind(user.id).first();
+    if (!stored) throw new AppError(404, 'balance_not_found', 'The committee has not recorded your balance yet.');
+    balancePence=stored.balance_pence; reconciledOn=stored.reconciled_on;
+  } else {
   const sourceUrl = context.env.MEMBER_BALANCES_CSV_URL;
   if (!sourceUrl) {
     throw new AppError(
@@ -169,8 +176,9 @@ export async function memberBalance(context, user) {
   }
 
   const csvText = await response.text();
-  const balancePence = findMemberBalance(csvText, user.displayName);
-  const reconciledOn = findReconciledOn(csvText);
+  balancePence = findMemberBalance(csvText, user.displayName);
+  reconciledOn = findReconciledOn(csvText);
+  }
   const result = await context.env.DB.prepare(
     `SELECT b.event_id, b.registered_at, e.cost, e.event_date,
             e.registration_closes_at, e.timezone

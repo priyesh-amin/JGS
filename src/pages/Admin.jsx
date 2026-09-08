@@ -1,3 +1,6 @@
+import CompetitionTableEditor from '../components/CompetitionTableEditor';
+import EventWorkspace from '../components/EventWorkspace';
+import ManagementRecords, { ManagementHelp } from '../components/ManagementRecords';
 import { useCallback, useEffect, useId, useState } from 'react';
 import MainLayout from '../layouts/MainLayout';
 import { api } from '../lib/api';
@@ -13,7 +16,8 @@ const TABS = [
 
 export default function Admin() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('events');
+  const [management, setManagement] = useState(null);
+  const [activeTab, setActiveTab] = useState(window.location.hash==='#tables'?'tables':'events');
   const [members, setMembers] = useState([]);
   const [events, setEvents] = useState([]);
   const [operations, setOperations] = useState(null);
@@ -26,10 +30,12 @@ export default function Admin() {
     setLoading(true);
     setError('');
     try {
+      const mode = await api.get('/api/admin/manage/status');
+      setManagement(mode);
       const [memberResult, eventResult, operationsResult, systemResult] = await Promise.all([
         api.get('/api/admin/members'),
         api.get('/api/admin/events'),
-        api.get('/api/admin/operations'),
+        mode.mode==='website' ? Promise.resolve(null) : api.get('/api/admin/operations'),
         api.get('/api/admin/sync'),
       ]);
       setMembers(memberResult.members);
@@ -59,12 +65,12 @@ export default function Admin() {
           <span className="text-xs font-black uppercase tracking-[0.24em] text-trophy-gold">Committee controls</span>
           <h1 className="mt-3 text-4xl font-serif font-black sm:text-5xl">Event administration</h1>
           <p className="mt-3 max-w-3xl text-white/75">
-            Manage member access, event windows, confirmed attendees and spreadsheet delivery from one protected area.
+            Manage events, players, game preparation and member records from one protected area.
           </p>
         </header>
 
         <nav className="mt-6 grid grid-cols-2 gap-2 rounded-xl border border-border-light bg-white p-2 shadow-sm sm:grid-cols-5" aria-label="Administrator sections">
-          {TABS.map(([id, label, icon]) => (
+          {(management?.mode==='website' ? [['events','Events','event'],['members','Members','groups'],['balances','Balances','account_balance_wallet'],['results','Results','trophy'],['tables','Match play','sports_golf'],['help','Help','help'],['history','History','history']] : TABS).map(([id, label, icon]) => (
             <button
               key={id}
               type="button"
@@ -96,7 +102,11 @@ export default function Admin() {
 
         {!loading && !error && (
           <div className="mt-6">
-            {activeTab === 'events' && <EventsAdmin events={events} onComplete={complete} />}
+            {management?.mode==='legacy' && <div className="mb-6 rounded-xl border border-jaguar-green bg-white p-5"><h2 className="text-xl font-bold">Switch to website management</h2><p className="my-3">Preserve current events, bookings and results, import matched balances, and stop spreadsheet updates. Old sheets remain historical copies.</p><button className="manage-button" onClick={async()=>{try {const r=await api.post('/api/admin/manage/activate');await complete(`Website management is active. ${r.importedBalances} balances imported. ${r.unmatched?.length || 0} balances need review in Balances.`);}catch(e){setError(e.message);}}}>Activate website management</button></div>}
+            {activeTab === 'events' && (management?.mode==='website' ? <EventWorkspace events={events} members={members} reload={async()=>setEvents((await api.get('/api/admin/events')).events)}/> : <EventsAdmin events={events} onComplete={complete} />)}
+            {['balances','results','history'].includes(activeTab) && <ManagementRecords key={activeTab} kind={activeTab}/>}
+            {activeTab==='tables' && <CompetitionTableEditor/>}
+            {activeTab==='help' && <ManagementHelp/>}
             {activeTab === 'attendees' && <AttendeesAdmin events={events} onComplete={complete} />}
             {activeTab === 'members' && <MembersAdmin members={members} onComplete={complete} />}
             {activeTab === 'operations' && <OperationsAdmin operations={operations} />}

@@ -64,6 +64,8 @@ export async function handleApi(handler) {
   try {
     return await handler();
   } catch (error) {
+    if (/Event capacity reached|Capacity cannot be below confirmed players/.test(String(error?.message))) return json({error:{code:'capacity_reached',message:'The event has reached its player limit. Increase capacity or release a place first.'}},409);
+    if (/malformed JSON/.test(String(error?.message))) return json({error:{code:'changed',message:'This record changed. Refresh before saving again.'}},409);
     if (error instanceof AppError) {
       return json(
         {

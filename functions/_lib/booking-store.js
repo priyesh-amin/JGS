@@ -1,3 +1,4 @@
+import { validateAnswers } from './booking-fields.js';
 import { AppError, isUniqueConstraintError } from './errors.js';
 import {
   assertCanCancel,
@@ -27,7 +28,7 @@ export function normaliseDietaryChoice(value) {
   return value;
 }
 
-function normalisePreferences(input) {
+export function normalisePreferences(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     throw invalidBookingInput('Booking details must be a JSON object.');
   }
@@ -169,10 +170,10 @@ export async function getEventForMember(db, memberId, eventId, now = new Date())
 
 export async function registerMember(
   db,
-  { memberId, eventId, input, actorId = memberId, now = new Date() },
+  { memberId, eventId, input, actorId = memberId, administrator = false, now = new Date() },
 ) {
   const event = await getEvent(db, eventId);
-  assertCanRegister(event, now);
+  if (!administrator) assertCanRegister(event, now);
   const existing = await getBooking(db, memberId, eventId);
   if (existing?.status === 'registered') {
     throw new AppError(
@@ -183,6 +184,7 @@ export async function registerMember(
   }
 
   const preferences = normalisePreferences(input || {});
+  validateAnswers(JSON.parse(event.booking_fields_json || '{}'), preferences.preferences);
   const id = existing?.id || bookingId(memberId, eventId);
   const nextVersion = Number(existing?.version || 0) + 1;
   const timestamp = now.toISOString();
@@ -203,15 +205,15 @@ export async function registerMember(
   const outboxKey = `booking:${id}:${nextVersion}`;
 
   const guard = `e.id = ?
-       AND e.source_type = 'google_sheet'
-       AND e.status IN ('published', 'open')
+       AND e.source_type IN ('google_sheet', 'website')
+       AND (${administrator ? '1' : '0'}=1 OR (e.status IN ('published', 'open')
        AND (e.publication_at IS NULL OR e.publication_at <= ?)
        AND e.registration_opens_at IS NOT NULL
        AND e.registration_opens_at <= ?
        AND e.registration_closes_at IS NOT NULL
        AND e.registration_closes_at > ?
        AND e.cancellation_closes_at IS NOT NULL
-       AND e.cancellation_closes_at > ?`;
+       AND e.cancellation_closes_at > ?))`;
   const write = existing
     ? db.prepare(
         `UPDATE bookings
@@ -356,7 +358,7 @@ export async function cancelMember(
          WHERE id = ? AND status = 'registered' AND version = ?
            AND EXISTS (
              SELECT 1 FROM events e
-             WHERE e.id = ? AND e.source_type = 'google_sheet'
+             WHERE e.id = ? AND e.source_type IN ('google_sheet', 'website')
                AND e.status IN ('published', 'open', 'closed')
                AND e.cancellation_closes_at IS NOT NULL
                AND e.cancellation_closes_at > ?
@@ -426,5 +428,22 @@ export async function cancelMember(
     throw error;
   }
 
+  return after;
+}
+
+export async function updateMemberBooking(db,{memberId,eventId,input,now=new Date()}) {
+  const event=await getEvent(db,eventId);
+  assertCanRegister(event,now);
+  const existing=await getBooking(db,memberId,eventId);
+  if (!existing || existing.status!=='registered') throw new AppError(409,'no_active_booking','There is no active booking to update.');
+  const details=normalisePreferences(input);
+  validateAnswers(JSON.parse(event.booking_fields_json || '{}'),details.preferences);
+  const timestamp=now.toISOString(),version=existing.version+1;
+  const after={...existing,buggy_required:details.buggyRequired?1:0,dietary_requirements:details.dietaryRequirements,preferences_json:JSON.stringify(details.preferences),updated_at:timestamp,version};
+  const result=await db.batch([
+    db.prepare(`UPDATE bookings SET buggy_required=?,dietary_requirements=?,preferences_json=?,updated_at=?,version=? WHERE id=? AND version=? AND status='registered' AND EXISTS (SELECT 1 FROM events WHERE id=? AND status IN ('published','open') AND registration_closes_at>?)`).bind(after.buggy_required,after.dietary_requirements,after.preferences_json,timestamp,version,existing.id,existing.version,eventId,timestamp),
+    db.prepare(`INSERT INTO booking_audit (id,booking_id,actor_member_id,action,before_json,after_json,created_at) SELECT ?,?,?,'admin_corrected',?,?,? WHERE changes()=1`).bind(`edit:${existing.id}:${version}`,existing.id,memberId,JSON.stringify(existing),JSON.stringify(after),timestamp),
+  ]);
+  if (!result[0].meta.changes) throw new AppError(409,'booking_changed','Booking changed. Refresh and try again.');
   return after;
 }

@@ -1,4 +1,6 @@
-﻿import {
+import { getCompetitionTable, saveCompetitionTable } from '../_lib/competition-tables.js';
+import { importLegacyReviews, resolveLegacyReview, activateManagement, managementData, assertManaged, saveEvent, preparation, savePreparation, saveGuest, saveBalance, saveResults } from '../_lib/management-store.js';
+import {
   assertMember,
   bootstrapAdmin,
   changePassword,
@@ -27,6 +29,7 @@ import {
 } from '../_lib/admin-store.js';
 import {
   cancelMember,
+  updateMemberBooking,
   getEventForMember,
   listEventsForMember,
   registerMember,
@@ -78,6 +81,12 @@ async function route(context) {
   ensureDatabase(context);
   const parts = pathParts(context.request);
   const method = context.request.method.toUpperCase();
+
+  if (parts[0] === 'public-fixtures') {
+    if (method!=='GET') return methodNotAllowed(['GET']);
+    const result=await context.env.DB.prepare("SELECT id,title,venue,event_date,meet_time,tee_time,cost,registration_closes_at,booking_fields_json,status FROM events WHERE status<>'draft' AND (publication_at IS NULL OR publication_at<=?) ORDER BY event_date").bind(new Date().toISOString()).all();
+    return json({events:result.results.map(e=>({...e,bookingFields:JSON.parse(e.booking_fields_json || '{}'),booking_fields_json:undefined}))});
+  }
 
   if (parts[0] === 'leaderboards') {
     if (method !== 'GET') return methodNotAllowed(['GET']);
@@ -227,10 +236,14 @@ async function route(context) {
 
     if (parts[2] === 'booking') {
       assertMember(user);
-      if (!['POST', 'DELETE'].includes(method)) {
+      if (!['POST', 'PATCH', 'DELETE'].includes(method)) {
         return methodNotAllowed(['POST', 'DELETE']);
       }
       assertSameOrigin(context.request, context.env);
+      if (method === 'PATCH') {
+        await assertManaged(context.env.DB);
+        return json({booking:await updateMemberBooking(context.env.DB,{memberId:user.id,eventId,input:await readJson(context.request)}),message:'Your requirements have been saved.'});
+      }
       const booking = method === 'POST'
         ? await registerMember(context.env.DB, {
             memberId: user.id,
@@ -254,6 +267,12 @@ async function route(context) {
     }
   }
 
+  if (parts[0] === 'competition-tables') {
+    await requireUser(context);
+    if (method!=='GET') return methodNotAllowed(['GET']);
+    return json(await getCompetitionTable(context.env.DB,parts[1]));
+  }
+
   if (parts[0] === 'account' && parts[1] === 'balance') {
     if (method !== 'GET') return methodNotAllowed(['GET']);
     return json(await memberBalance(context, await requireUser(context)));
@@ -261,6 +280,33 @@ async function route(context) {
 
   if (parts[0] === 'admin') {
     const admin = await requireAdmin(context);
+
+    if (parts[1] === 'manage') {
+      const db=context.env.DB, kind=parts[2], id=parts[3];
+      if (method === 'GET') {
+        if (kind==='events' && id) return json(await preparation(db,id));
+        return json(await managementData(db,kind));
+      }
+      if (!['POST','PATCH'].includes(method)) return methodNotAllowed(['GET','POST','PATCH']);
+      assertSameOrigin(context.request,context.env);
+      if (kind==='activate' && method==='POST') return json(await activateManagement(context,admin));
+      await assertManaged(db);
+      const input=await readJson(context.request,{maxBytes:200000});
+      if (kind==='tables') return json(await saveCompetitionTable(db,admin,id,input));
+      if (kind==='reviews') return json(await resolveLegacyReview(db,admin,id,input));
+      if (kind==='events' && parts[4]==='reviews') return json(await importLegacyReviews(db,admin,id,input));
+      if (kind==='events' && parts[4]==='guests') return json(await saveGuest(db,admin,id,parts[5],input));
+      if (kind==='events' && parts[4]==='bookings') {
+        const member=await db.prepare("SELECT id FROM members WHERE id=? AND role='member' AND status='active'").bind(input.memberId).first();
+        if (!member) throw new AppError(400,'invalid_member','Choose an active member.');
+        return json({booking:await registerMember(db,{memberId:member.id,eventId:id,input,actorId:admin.id,administrator:true})});
+      }
+      if (kind==='events') return json({event:await saveEvent(db,admin,id,input)});
+      if (kind==='preparation') return json(await savePreparation(db,admin,id,input));
+      if (kind==='balances') return json(await saveBalance(db,admin,id,input));
+      if (kind==='results') return json(await saveResults(db,admin,input));
+      throw new AppError(404,'not_found','Not found.');
+    }
 
     if (parts[1] === 'operations') {
       if (method !== 'GET') return methodNotAllowed(['GET']);

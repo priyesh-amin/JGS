@@ -1,0 +1,6 @@
+.manage-input {display:block;width:100%;min-height:44px;margin-top:6px;padding:9px 12px;border:1px solid #cbd5e1;border-radius:8px;background:white;font-weight:400;color:#142b38}
+.manage-input:focus {outline:2px solid #176547;outline-offset:2px}
+.manage-button {min-height:44px;padding:10px 18px;border-radius:8px;background:#12553d;color:white;font-weight:700}
+.manage-button:disabled {opacity:.5}
+.print-only {display:none}
+@media print {body * {visibility:hidden} .management,.management * {visibility:visible}.management {position:absolute;left:0;top:0;width:100%;color:black}.no-print,.no-print * {display:none!important}.print-only {display:block} table {width:100%;border-collapse:collapse;font-size:10pt}th,td {border:1px solid #aaa;padding:5px;text-align:left} tr {break-inside:avoid} details {display:none}}
