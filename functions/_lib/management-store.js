@@ -36,7 +36,7 @@ export async function activateManagement(context, actor) {
   const [events, bookings, results, members, preparation, guests] = await Promise.all([
     all(db,'SELECT * FROM events'), all(db,'SELECT * FROM bookings'),
     all(db,'SELECT * FROM leaderboard_entries WHERE generation_id = (SELECT active_generation_id FROM leaderboard_state WHERE singleton=1)'),
-    all(db,"SELECT id,display_name FROM members WHERE role='member'"), all(db,'SELECT * FROM event_preparation'), all(db,'SELECT * FROM event_guests'),
+    all(db,"SELECT id,display_name FROM members WHERE role='member' AND email<>? COLLATE NOCASE",context.env.RECOVERY_ADMIN_EMAIL || ''), all(db,'SELECT * FROM event_preparation'), all(db,'SELECT * FROM event_guests'),
   ]);
   const balances = [], unmatched = [];
   for (const member of members) {
@@ -121,10 +121,11 @@ export async function saveGuest(db,actor,eventId,id,input) {
   if (!result[0].meta.changes) conflict();
   return {saved:true};
 }
-export async function balances(db) {
-  return all(db,`SELECT m.id,m.display_name,b.balance_pence,b.reconciled_on,b.note,b.version,b.updated_at FROM members m LEFT JOIN member_balances b ON b.member_id=m.id WHERE m.role='member' ORDER BY m.display_name COLLATE NOCASE`);
+export async function balances(db,excludedEmail='') {
+  return all(db,`SELECT m.id,m.display_name,b.balance_pence,b.reconciled_on,b.note,b.version,b.updated_at FROM members m LEFT JOIN member_balances b ON b.member_id=m.id WHERE m.role='member' AND m.email<>? COLLATE NOCASE ORDER BY m.display_name COLLATE NOCASE`,excludedEmail);
 }
-export async function saveBalance(db,actor,id,input) {
+export async function saveBalance(db,actor,id,input,excludedEmail='') {
+  if(!await db.prepare("SELECT id FROM members WHERE id=? AND role='member' AND email<>? COLLATE NOCASE").bind(id,excludedEmail).first()) throw new AppError(404,'not_found','Member not found.');
   await assertManaged(db);
   const before = await db.prepare('SELECT * FROM member_balances WHERE member_id=?').bind(id).first();
   if (Number(before?.version || 0) !== Number(input.version || 0)) conflict();
@@ -156,11 +157,11 @@ export async function saveResults(db,actor,input) {
   if (!saved[entries.length].meta.changes) conflict();
   return {saved:true};
 }
-export async function managementData(db,kind) {
-  if (kind==='balances') return {balances:await balances(db)};
+export async function managementData(db,kind,excludedEmail='') {
+  if (kind==='balances') return {balances:await balances(db,excludedEmail)};
   if (kind==='results') return {generation:(await db.prepare('SELECT active_generation_id FROM leaderboard_state WHERE singleton=1').first())?.active_generation_id,entries:await all(db,'SELECT * FROM leaderboard_entries WHERE generation_id=(SELECT active_generation_id FROM leaderboard_state WHERE singleton=1) ORDER BY year DESC,category')};
   if (kind==='history') return {history:await all(db,'SELECT a.*,m.display_name AS actor FROM management_audit a JOIN members m ON m.id=a.actor_id ORDER BY a.created_at DESC LIMIT 100')};
-  if (kind==='backup') return {exportedAt:new Date().toISOString(),events:await all(db,'SELECT * FROM events'),bookings:await all(db,'SELECT * FROM bookings'),members:await all(db,"SELECT id,display_name,email,role,status FROM members WHERE username IS NULL AND role='member'"),balances:await balances(db),preparation:await all(db,'SELECT * FROM event_preparation'),guests:await all(db,'SELECT * FROM event_guests'),results:await managementData(db,'results'),competitionTables:await all(db,'SELECT * FROM competition_tables'),legacyReviews:await all(db,'SELECT * FROM legacy_registration_reviews')};
+  if (kind==='backup') return {exportedAt:new Date().toISOString(),events:await all(db,'SELECT * FROM events'),bookings:await all(db,'SELECT * FROM bookings'),members:await all(db,"SELECT id,display_name,email,role,status FROM members WHERE username IS NULL AND role='member' AND email<>? COLLATE NOCASE",excludedEmail),balances:await balances(db,excludedEmail),preparation:await all(db,'SELECT * FROM event_preparation'),guests:await all(db,'SELECT * FROM event_guests'),results:await managementData(db,'results'),competitionTables:await all(db,'SELECT * FROM competition_tables'),legacyReviews:await all(db,'SELECT * FROM legacy_registration_reviews')};
   return managementStatus(db);
 }
 
@@ -189,5 +190,40 @@ export async function resolveLegacyReview(db,actor,id,input) {
   const before=await db.prepare('SELECT * FROM legacy_registration_reviews WHERE id=?').bind(id).first();
   if(!before) bad('Review not found.');
   await db.batch([db.prepare('UPDATE legacy_registration_reviews SET resolution=?,resolved_by=?,resolved_at=? WHERE id=?').bind(note,actor.id,new Date().toISOString(),id),audit(db,actor,'legacy_review',id,before,{resolution:note})]);
+  return {saved:true};
+}
+
+export async function importMissingBooking(db,actor,reviewId,input) {
+  await assertManaged(db);
+  const review=await db.prepare('SELECT * FROM legacy_registration_reviews WHERE id=?').bind(reviewId).first();
+  if(!review || review.resolution) bad('Choose an unresolved historical registration.');
+  const details=JSON.parse(review.details_json);
+  const entry=Object.entries(details);
+  const originalStatus=entry.find(([k])=>/registering or canceling/i.test(k))?.[1];
+  if(originalStatus!=='Register for event') bad('Only an explicit registration can be imported.');
+  const originalTime=entry.find(([k])=>/^timestamp$/i.test(k))?.[1];
+  const other=await all(db,'SELECT details_json FROM legacy_registration_reviews WHERE event_id=? AND source=? AND name=?',review.event_id,review.source,review.name);
+  if(other.some(r=>String(JSON.parse(r.details_json).Timestamp || '')>String(originalTime))) bad('A later response exists. Review the latest response instead.');
+  const registeredOn=date(input.registeredOn);
+  if(registeredOn!==String(originalTime).slice(0,10)) bad('Use the date recorded in the original response.');
+  const candidates=await all(db,"SELECT id FROM members WHERE display_name=? COLLATE NOCASE AND role='member' AND status='active'",review.name);
+  if(candidates.length!==1) bad('The name does not match exactly one active member.');
+  const memberId=candidates[0].id;
+  if(await db.prepare('SELECT id FROM bookings WHERE member_id=? AND event_id=?').bind(memberId,review.event_id).first()) bad('A website booking already exists. Review it instead of overwriting it.');
+  const request=entry.find(([k])=>/LATEST entry/i.test(k))?.[1] || '';
+  const social=entry.find(([k])=>/attend social/i.test(k))?.[1];
+  const preferences={legacy_source:review.source,legacy_timestamp:originalTime || '',...(request.includes('Vegetarian Breakfast')?{breakfast:'Vegetarian'}:{}),...(['Yes','No','Maybe'].includes(social)?{social}:{})};
+  const id=`${review.event_id}::${memberId}`,now=new Date().toISOString();
+  // The original source date governs the existing date-based balance forecast.
+  // Noon is a migration marker, not a claim about the original response time.
+  const registeredAt=`${registeredOn}T12:00:00.000Z`;
+  const after={id,memberId,eventId:review.event_id,status:'registered',buggyRequired:request.includes('Buggy'),dietaryRequirements:null,preferences,registeredAt,updatedAt:now,version:1};
+  const resolution='Imported the explicit registration into the missing website booking. Original date retained; timestamp normalised to noon for migration. Dietary choice remains unrecorded.';
+  await db.batch([
+    db.prepare("INSERT INTO bookings (id,member_id,event_id,status,buggy_required,dietary_requirements,preferences_json,registered_at,updated_at,version) VALUES (?,?,?,'registered',?,NULL,?,?,?,1)").bind(id,memberId,review.event_id,after.buggyRequired?1:0,JSON.stringify(preferences),registeredAt,now),
+    db.prepare("INSERT INTO booking_audit VALUES (?,?,?,'registered',NULL,?,?)").bind(`legacy:${id}:1`,id,actor.id,JSON.stringify(after),now),
+    db.prepare('UPDATE legacy_registration_reviews SET resolution=?,resolved_by=?,resolved_at=? WHERE id=?').bind(resolution,actor.id,now,reviewId),
+    audit(db,actor,'legacy_import',id,null,{source:review.source,originalTime,registeredOn,booking:after}),
+  ]);
   return {saved:true};
 }

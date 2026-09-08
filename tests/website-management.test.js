@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
-import { activateManagement, saveEvent, savePreparation, saveGuest, saveBalance, saveResults, managementData, importLegacyReviews, resolveLegacyReview } from '../functions/_lib/management-store.js';
+import { activateManagement, saveEvent, savePreparation, saveGuest, saveBalance, saveResults, managementData, importLegacyReviews, resolveLegacyReview, importMissingBooking } from '../functions/_lib/management-store.js';
 import { registerMember, cancelMember, updateMemberBooking } from '../functions/_lib/booking-store.js';
 import { correctBooking } from '../functions/_lib/admin-store.js';
 import { memberBalance } from '../functions/_lib/balance-store.js';
@@ -68,4 +68,19 @@ test('historical form imports are repeatable and never change live bookings',asy
  assert.equal((await db.prepare('SELECT COUNT(*) AS count FROM bookings').first()).count,0);
  await resolveLegacyReview(db,actor,rows[0].id,{resolution:'Checked with member; later website cancellation stands.'});
  assert.equal((await db.prepare('SELECT COUNT(*) AS count FROM bookings').first()).count,0);
+});
+
+test('missing form registration keeps source date and unknown dietary without replacing cancellations',async()=>{
+ const db=database(),event=await native(db);
+ const input={source:'Original form',csv:'Timestamp,Mandatory: Name,Are you registering or canceling?,LATEST entry requests,Will you attend social\\n2026-08-25 10:00:00,one,Register for event,Vegetarian Breakfast,Yes'.replaceAll('\\n','\n')};
+ await importLegacyReviews(db,actor,event.id,input);
+ const review=await db.prepare('SELECT * FROM legacy_registration_reviews').first();
+ await importMissingBooking(db,actor,review.id,{registeredOn:'2026-08-25'});
+ const b=await db.prepare('SELECT * FROM bookings').first();
+ assert.equal(b.dietary_requirements,null);
+ assert.equal(b.registered_at,'2026-08-25T12:00:00.000Z');
+ assert.equal(JSON.parse(b.preferences_json).breakfast,'Vegetarian');
+ await correctBooking(db,b.id,{status:'cancelled',dietaryRequirements:null,preferences:JSON.parse(b.preferences_json),preparation:{version:0,group_name:'1'}},actor,now);
+ assert.equal((await db.prepare('SELECT status FROM bookings').first()).status,'cancelled');
+ await assert.rejects(()=>importMissingBooking(db,actor,review.id,{registeredOn:'2026-08-25'}));
 });

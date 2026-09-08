@@ -16,6 +16,7 @@ const TABS = [
 
 export default function Admin() {
   const { user } = useAuth();
+  const [activating,setActivating]=useState(false);
   const [management, setManagement] = useState(null);
   const [activeTab, setActiveTab] = useState(window.location.hash==='#tables'?'tables':'events');
   const [members, setMembers] = useState([]);
@@ -102,7 +103,7 @@ export default function Admin() {
 
         {!loading && !error && (
           <div className="mt-6">
-            {management?.mode==='legacy' && <div className="mb-6 rounded-xl border border-jaguar-green bg-white p-5"><h2 className="text-xl font-bold">Switch to website management</h2><p className="my-3">Preserve current events, bookings and results, import matched balances, and stop spreadsheet updates. Old sheets remain historical copies.</p><button className="manage-button" onClick={async()=>{try {const r=await api.post('/api/admin/manage/activate');await complete(`Website management is active. ${r.importedBalances} balances imported. ${r.unmatched?.length || 0} balances need review in Balances.`);}catch(e){setError(e.message);}}}>Activate website management</button></div>}
+            {management?.mode==='legacy' && <div className="mb-6 rounded-xl border border-jaguar-green bg-white p-5"><h2 className="text-xl font-bold">Switch to website management</h2><p className="my-3">Preserve current events, bookings and results, import matched balances, and stop spreadsheet updates. Old sheets remain historical copies.</p><button className="manage-button" disabled={activating} onClick={async()=>{setActivating(true);try {const r=await api.post('/api/admin/manage/activate');setActiveTab('events');await complete(`Website management is active. ${r.importedBalances} balances imported. ${r.unmatched?.length || 0} balances need review in Balances.`);}catch(e){setError(e.message);}finally{setActivating(false);}}}>{activating?'Activating…':'Activate website management'}</button></div>}
             {activeTab === 'events' && (management?.mode==='website' ? <EventWorkspace events={events} members={members} reload={async()=>setEvents((await api.get('/api/admin/events')).events)}/> : <EventsAdmin events={events} onComplete={complete} />)}
             {['balances','results','history'].includes(activeTab) && <ManagementRecords key={activeTab} kind={activeTab}/>}
             {activeTab==='tables' && <CompetitionTableEditor/>}

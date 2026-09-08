@@ -332,7 +332,7 @@ export async function updateEvent(db, eventId, input) {
 
   const allowedStatuses = ['draft', 'published', 'open', 'closed', 'completed'];
   if (input.version !== undefined && input.version !== existing.version) throw new AppError(409, 'booking_changed', 'This booking changed. Refresh before saving.');
-  if (input.preferences !== undefined) normalisePreferences({...input, dietaryRequirements: input.dietaryRequirements || existing.dietary_requirements, buggyRequired: input.buggyRequired ?? Boolean(existing.buggy_required)});
+  if (input.preferences !== undefined) normalisePreferences({...input, dietaryRequirements: input.dietaryRequirements || existing.dietary_requirements, buggyRequired: input.buggyRequired ?? Boolean(existing.buggy_required)}, {allowMissingDietary: !existing.dietary_requirements});
   const status = input.status === undefined
     ? existing.status
     : allowedStatuses.includes(input.status) ? input.status : null;
@@ -426,7 +426,7 @@ export async function correctBooking(
   }
 
   if (input.version !== undefined && input.version !== existing.version) throw new AppError(409, 'booking_changed', 'This booking changed. Refresh before saving.');
-  if (input.preferences !== undefined) normalisePreferences({...input, dietaryRequirements: input.dietaryRequirements || existing.dietary_requirements, buggyRequired: input.buggyRequired ?? Boolean(existing.buggy_required)});
+  if (input.preferences !== undefined) normalisePreferences({...input, dietaryRequirements: input.dietaryRequirements || existing.dietary_requirements, buggyRequired: input.buggyRequired ?? Boolean(existing.buggy_required)}, {allowMissingDietary: !existing.dietary_requirements});
   const status = input.status === undefined
     ? existing.status
     : input.status === 'registered' || input.status === 'cancelled'
@@ -434,8 +434,8 @@ export async function correctBooking(
       : null;
   if (!status) throw new AppError(400, 'invalid_status', 'Invalid booking status.');
   const dietaryRequirements = input.dietaryRequirements === undefined
-    ? normaliseDietaryChoice(existing.dietary_requirements)
-    : normaliseDietaryChoice(input.dietaryRequirements);
+    ? existing.dietary_requirements ? normaliseDietaryChoice(existing.dietary_requirements) : null
+    : !input.dietaryRequirements && !existing.dietary_requirements ? null : normaliseDietaryChoice(input.dietaryRequirements);
   const buggyRequired = input.buggyRequired === undefined
     ? Boolean(existing.buggy_required)
     : Boolean(input.buggyRequired);

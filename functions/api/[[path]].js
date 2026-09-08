@@ -1,6 +1,6 @@
 import { websiteManaged } from '../_lib/management-mode.js';
 import { getCompetitionTable, saveCompetitionTable } from '../_lib/competition-tables.js';
-import { importLegacyReviews, resolveLegacyReview, activateManagement, managementData, assertManaged, saveEvent, preparation, savePreparation, saveGuest, saveBalance, saveResults } from '../_lib/management-store.js';
+import { importMissingBooking, importLegacyReviews, resolveLegacyReview, activateManagement, managementData, assertManaged, saveEvent, preparation, savePreparation, saveGuest, saveBalance, saveResults } from '../_lib/management-store.js';
 import {
   assertMember,
   bootstrapAdmin,
@@ -289,9 +289,10 @@ async function route(context) {
 
     if (parts[1] === 'manage') {
       const db=context.env.DB, kind=parts[2], id=parts[3];
+      const excludedEmail=admin.username?context.env.RECOVERY_ADMIN_EMAIL || '':'';
       if (method === 'GET') {
         if (kind==='events' && id) return json(await preparation(db,id));
-        return json(await managementData(db,kind));
+        return json(await managementData(db,kind,excludedEmail));
       }
       if (!['POST','PATCH'].includes(method)) return methodNotAllowed(['GET','POST','PATCH']);
       assertSameOrigin(context.request,context.env);
@@ -299,17 +300,18 @@ async function route(context) {
       await assertManaged(db);
       const input=await readJson(context.request,{maxBytes:200000});
       if (kind==='tables') return json(await saveCompetitionTable(db,admin,id,input));
+      if (kind==='reviews' && parts[4]==='import-booking') return json(await importMissingBooking(db,admin,id,input));
       if (kind==='reviews') return json(await resolveLegacyReview(db,admin,id,input));
       if (kind==='events' && parts[4]==='reviews') return json(await importLegacyReviews(db,admin,id,input));
       if (kind==='events' && parts[4]==='guests') return json(await saveGuest(db,admin,id,parts[5],input));
       if (kind==='events' && parts[4]==='bookings') {
-        const member=await db.prepare("SELECT id FROM members WHERE id=? AND role='member' AND status='active'").bind(input.memberId).first();
+        const member=await db.prepare("SELECT id FROM members WHERE id=? AND role='member' AND status='active' AND email<>? COLLATE NOCASE").bind(input.memberId,excludedEmail).first();
         if (!member) throw new AppError(400,'invalid_member','Choose an active member.');
         return json({booking:await registerMember(db,{memberId:member.id,eventId:id,input,actorId:admin.id,administrator:true})});
       }
       if (kind==='events') return json({event:await saveEvent(db,admin,id,input)});
       if (kind==='preparation') return json(await savePreparation(db,admin,id,input));
-      if (kind==='balances') return json(await saveBalance(db,admin,id,input));
+      if (kind==='balances') return json(await saveBalance(db,admin,id,input,excludedEmail));
       if (kind==='results') return json(await saveResults(db,admin,input));
       throw new AppError(404,'not_found','Not found.');
     }
@@ -429,6 +431,7 @@ async function route(context) {
       }
       if (method !== 'POST') return methodNotAllowed(['GET', 'POST']);
       assertSameOrigin(context.request, context.env);
+      if(await websiteManaged(context.env.DB)) throw new AppError(409,'website_managed','Events are managed on the website. Spreadsheet synchronisation is retired.');
       const sourceUrl = context.env.MASTER_FIXTURES_CSV_URL;
       if (!sourceUrl || !context.env.EXPECTED_FIXTURE_IDS) {
         throw new AppError(
