@@ -7,7 +7,6 @@ on:
       - '.github/workflows/deploy-application.yml'
       - 'functions/**'
       - 'migrations/**'
-      - 'scripts/apply-management-migration.mjs'
       - 'scripts/retire-legacy-schedule.mjs'
       - 'public/**'
       - 'src/**'
@@ -38,12 +37,6 @@ jobs:
         run: |
           npm ci
           npm run check
-
-      - name: Apply additive management schema
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: node scripts/apply-management-migration.mjs
 
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3

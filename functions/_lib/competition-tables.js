@@ -1,3 +1,4 @@
+import { websiteManaged } from './management-mode.js';
 import { AppError } from './errors.js';
 import { parseCsv } from './sheet-sync.js';
 export const COMPETITION_SOURCES={handicap:'11onOylPWWGTH2pHKZhu9-j6TDBu8XiKzeRlnD4vr1ys',singles:'1ZU3FaafiE50C9YPDT5fY8qLMOvIUDuu18vtvrYAh_ZE',doubles:'1fhGDgdQ099mGIwpFqEpk2jdjuxeerNTWoHgl7-6gXt0'};
@@ -14,6 +15,7 @@ export async function importCompetitionTables() {
 }
 export async function getCompetitionTable(db,id) {
   if(!COMPETITION_SOURCES[id]) throw new AppError(404,'not_found','Competition table not found.');
+  if(!await websiteManaged(db)) return {id,legacy:true};
   const row=await db.prepare('SELECT * FROM competition_tables WHERE id=?').bind(id).first();
   if(!row) return {id,legacy:true};
   return {id,rows:JSON.parse(row.rows_json),version:row.version,updatedAt:row.updated_at};

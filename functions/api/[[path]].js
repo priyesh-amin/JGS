@@ -1,3 +1,4 @@
+import { websiteManaged } from '../_lib/management-mode.js';
 import { getCompetitionTable, saveCompetitionTable } from '../_lib/competition-tables.js';
 import { importLegacyReviews, resolveLegacyReview, activateManagement, managementData, assertManaged, saveEvent, preparation, savePreparation, saveGuest, saveBalance, saveResults } from '../_lib/management-store.js';
 import {
@@ -81,6 +82,11 @@ async function route(context) {
   ensureDatabase(context);
   const parts = pathParts(context.request);
   const method = context.request.method.toUpperCase();
+
+  if (parts[0] === 'status') {
+    if(method!=='GET') return methodNotAllowed(['GET']);
+    return json({management:await websiteManaged(context.env.DB)?'website':'legacy'});
+  }
 
   if (parts[0] === 'public-fixtures') {
     if (method!=='GET') return methodNotAllowed(['GET']);
