@@ -18,7 +18,7 @@ The additive migration retains existing tables and records. Activation refuses t
 
 Historical form responses can be imported into an event’s review queue. This never creates or cancels bookings automatically. Resolve identity/status conflicts with the member, update the website if appropriate and record the check. Repeated identical source imports are deduplicated. Do not infer dietary choices from missing answers.
 
-The original Sheets remain historical references. Existing hourly sync writes are blocked by database triggers after activation; the deployment workflow then removes the old scheduled trigger once it observes website mode. Do not reopen old forms for current registrations.
+The original Sheets remain historical references. Existing hourly sync writes are blocked by database triggers after activation; removing the old scheduled trigger is a one-time Cloudflare owner task (the deployment token lacks Workers schedule permission). It is not part of routine releases. Do not reopen old forms for current registrations.
 
 ## Technical recovery
 
@@ -27,3 +27,7 @@ Deploy through the existing GitHub Actions / Cloudflare Pages workflow. The auth
 Use Cloudflare D1 recovery for a database incident. `management_snapshots` retains the cutover snapshot; management/booking audits retain changes. The committee JSON export intentionally excludes passwords, sessions, reset tokens and provider credentials. Keep exports private. Restore requires a technical review; there is no unsafe one-click database overwrite.
 
 Do not roll back to a pre-management application after activation: it assumes spreadsheet ownership. Fix forward, or deliberately restore both the pre-switch data and application in a reviewed recovery procedure.
+
+## Remaining provider cleanup
+
+The application is independent of spreadsheet reads after activation. The legacy `jgs-fixture-sync` cron is still configured because Cloudflare returned 403 / 10000 for schedule administration. Database ownership triggers block its writes. A Cloudflare owner should remove its cron trigger under Workers & Pages → jgs-fixture-sync → Settings → Triggers. The standalone `scripts/retire-legacy-schedule.mjs` performs the same bounded operation with an appropriately authorised token; never broaden the routine Pages token merely for this one-time cleanup.

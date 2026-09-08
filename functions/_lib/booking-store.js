@@ -111,7 +111,7 @@ async function confirmedAttendees(db, eventId) {
     email: row.email,
     buggyRequired: Boolean(row.buggy_required),
     dietaryRequirements: row.dietary_requirements || '',
-    preferences: safePreferences(row.preferences_json),
+    preferences: Object.fromEntries(Object.entries(safePreferences(row.preferences_json)).filter(([key])=>!key.startsWith('legacy_'))),
   }));
 }
 
