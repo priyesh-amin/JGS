@@ -1,3 +1,5 @@
+import BookingQuestions from '../components/BookingQuestions';
+import '../components/management.css';
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
@@ -173,6 +175,8 @@ function BookingPanel({ event, isAdmin, onChanged }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [showCancel, setShowCancel] = useState(false);
+  const [answers, setAnswers] = useState(event.booking?.preferences || {});
+  const [editing, setEditing] = useState(false);
 
   const refresh = async (message) => {
     const result = await api.get(`/api/events/${encodeURIComponent(event.id)}`);
@@ -188,11 +192,13 @@ function BookingPanel({ event, isAdmin, onChanged }) {
     }
     setSubmitting(true);
     try {
-      const result = await api.post(`/api/events/${encodeURIComponent(event.id)}/booking`, {
+      const result = await api[active ? 'patch' : 'post'](`/api/events/${encodeURIComponent(event.id)}/booking`, {
+        preferences: answers,
         buggyRequired,
         dietaryRequirements: dietaryChoice,
       });
       await refresh(result.message);
+      setEditing(false);
     } catch (registerError) {
       setError(registerError.message || 'Registration could not be completed.');
     } finally {
@@ -226,7 +232,7 @@ function BookingPanel({ event, isAdmin, onChanged }) {
     );
   }
 
-  if (active) {
+  if (active && !editing) {
     return (
       <aside className="h-fit rounded-2xl border-2 border-green-200 bg-white p-6 shadow-lg" aria-labelledby="booking-heading">
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100 text-green-700">
@@ -243,6 +249,8 @@ function BookingPanel({ event, isAdmin, onChanged }) {
           <Info label="Last updated" value={formatDateTime(event.booking.updatedAt, event.timezone)} />
         </dl>
         {error && <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm font-semibold text-charity-crimson" role="alert">{error}</p>}
+        {event.availability.registration === 'open' && <button className="manage-button mt-4" onClick={()=>setEditing(true)}>Edit my requirements</button>}
+        {(event.bookingFields?.questions || []).map(q=><p className="mt-2 text-sm" key={q.key}><strong>{q.label}: </strong>{String(event.booking.preferences?.[q.key] ?? 'Not recorded')}</p>)}
         {event.availability.cancellation === 'open' ? (
           showCancel ? (
             <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4">
@@ -328,13 +336,14 @@ function BookingPanel({ event, isAdmin, onChanged }) {
             ))}
           </div>
         </fieldset>
+        <BookingQuestions questions={event.bookingFields?.questions || []} answers={answers} onChange={setAnswers}/>
         {error && <p className="rounded-lg bg-red-50 p-3 text-sm font-semibold text-charity-crimson" role="alert">{error}</p>}
         <button
           type="submit"
           disabled={submitting || !dietaryChoice}
           className="min-h-12 w-full rounded-lg bg-charity-crimson px-5 py-3 font-black uppercase tracking-wider text-white shadow transition hover:bg-red-800 disabled:cursor-wait disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-charity-crimson"
         >
-          {submitting ? 'Confirming…' : 'Confirm my registration'}
+          {submitting ? 'Saving…' : active ? 'Save my requirements' : 'Confirm my registration'}
         </button>
       </form>
     </aside>

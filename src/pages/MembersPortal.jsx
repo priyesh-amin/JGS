@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import MainLayout from '../layouts/MainLayout';
 import DataTable from '../components/DataTable';
 import HandicapTable from '../components/HandicapTable';
-import useGoogleSheet from '../hooks/useGoogleSheet';
+import useCompetitionTable from '../hooks/useCompetitionTable';
+import MemberBalanceCard from '../components/MemberBalanceCard';
 import { useAuth } from '../contexts/useAuth';
 
 // --- Sheet Configuration ---
@@ -58,7 +59,7 @@ const SHEETS = [
 
 // --- Individual Tab Content ---
 function SheetTab({ sheet, onLoadingStateChange }) {
-    const { raw, data, columns, loading, error, refetch } = useGoogleSheet(sheet.spreadsheetId, sheet.gid, sheet.customHeaders);
+    const { raw, data, columns, loading, error, refetch } = useCompetitionTable(sheet.id, sheet.spreadsheetId);
     const { isAdmin } = useAuth();
 
     useEffect(() => {
@@ -102,16 +103,16 @@ function SheetTab({ sheet, onLoadingStateChange }) {
                     <div className="flex items-center gap-2 text-sm text-midnight-navy">
                         <span className="material-symbols-outlined text-lg text-trophy-gold">admin_panel_settings</span>
                         <span className="font-medium">Admin Mode</span>
-                        <span className="text-gray-500 hidden sm:inline">— Edit this data directly in Google Sheets</span>
+                        <span className="text-gray-500 hidden sm:inline">— Manage this table in the committee workspace</span>
                     </div>
                     <a
-                        href={sheet.editUrl}
+                        href="/admin#tables"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 px-4 py-2 bg-jaguar-green text-white font-bold text-[11px] uppercase tracking-widest rounded shadow-md hover:bg-green-900 transition-all active:scale-95"
                     >
                         <span className="material-symbols-outlined text-base">edit</span>
-                        Edit in Google Sheets
+                        Edit competition table
                         <span className="material-symbols-outlined text-base">open_in_new</span>
                     </a>
                 </div>
@@ -145,7 +146,7 @@ function SheetTab({ sheet, onLoadingStateChange }) {
 
 // --- Main Page ---
 export default function MembersPortal() {
-    const { user } = useAuth();
+
     // Read active tab from URL hash, default to first sheet
     const getInitialTab = () => {
         const hash = window.location.hash.replace('#', '');
@@ -203,38 +204,7 @@ export default function MembersPortal() {
                     </div>
                 </div>
 
-                <section className="rounded-xl border border-trophy-gold/30 bg-white p-5 shadow-md" aria-labelledby="finance-resource-heading">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-start gap-3">
-                            <span className="material-symbols-outlined rounded-full bg-jaguar-green/10 p-2 text-jaguar-green" aria-hidden="true">
-                                account_balance_wallet
-                            </span>
-                            <div>
-                                <h2 id="finance-resource-heading" className="text-lg font-serif font-bold text-midnight-navy">
-                                    Your finance resource
-                                </h2>
-                                <p className="mt-1 text-sm text-gray-600">
-                                    This link is attached only to your signed-in account. Other members cannot retrieve it through the website.
-                                </p>
-                            </div>
-                        </div>
-                        {user.financeUrl ? (
-                            <a
-                                href={user.financeUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-jaguar-green px-5 py-3 text-sm font-black text-white shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-jaguar-green"
-                            >
-                                Open my balance
-                                <span className="material-symbols-outlined text-lg" aria-hidden="true">open_in_new</span>
-                            </a>
-                        ) : (
-                            <span className="rounded-lg bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
-                                No personal finance link is configured.
-                            </span>
-                        )}
-                    </div>
-                </section>
+                <MemberBalanceCard/>
 
                 {/* Tab Navigation */}
                 <div className="bg-white rounded-xl shadow-md border border-border-light overflow-hidden">

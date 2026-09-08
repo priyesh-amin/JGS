@@ -121,7 +121,7 @@ test('registration write is guarded by the authoritative source and every exact 
     now,
   });
   const [write, audit, outbox] = db.batches[0];
-  assert.match(write.sql, /source_type = 'google_sheet'/);
+  assert.match(write.sql, /source_type IN \('google_sheet', 'website'\)/);
   assert.match(write.sql, /registration_opens_at IS NOT NULL/);
   assert.match(write.sql, /registration_closes_at IS NOT NULL/);
   assert.match(write.sql, /cancellation_closes_at IS NOT NULL/);

@@ -1,15 +1,12 @@
-import React, { useMemo } from 'react';
+import React from 'react';
+import useFeaturedEvent from '../hooks/useFeaturedEvent';
 import MainLayout from '../layouts/MainLayout';
 import { Link } from 'react-router-dom';
-import fixtures from '../data/fixtures.json';
 import SocietyObjectives from '../components/SocietyObjectives';
 import Committee from '../components/Committee';
 
 export default function Home() {
-  // Find the Featured Charity Day (IsCharityDay = true)
-  const featuredEvent = useMemo(() => {
-    return fixtures.find(f => f.isCharityDay) || fixtures[0];
-  }, []);
+  const featuredEvent = useFeaturedEvent();
 
   return (
     <MainLayout>
@@ -77,7 +74,7 @@ export default function Home() {
                 </div>
                 <div className="flex items-center gap-2 text-trophy-gold text-xs uppercase tracking-wider mt-4">
                   <span className="w-2 h-2 rounded-full bg-trophy-gold animate-pulse"></span>
-                  Cost: {featuredEvent.cost} (Full Package)
+                  Cost: {featuredEvent.cost}
                 </div>
               </div>
 

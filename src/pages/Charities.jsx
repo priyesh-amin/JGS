@@ -1,23 +1,10 @@
-﻿import React, { useRef } from 'react';
+import React, { useRef } from 'react';
 import MainLayout from '../layouts/MainLayout';
-import fixtures from '../data/fixtures.json';
-
-const fallbackEvent = {
-  date: '17 Jun 2026',
-  event: 'Charity Day',
-  venue: 'Maylands Golf Club (RM3 0AZ)',
-  cost: '\u00A3115',
-  meetTime: '08:30',
-  teeTime: '11:00',
-  deadline: '01 Jun 2026',
-  capacity: '128',
-  package: 'Full English Breakfast, Lunch, Dinner, On-course drinks, Golf',
-  schedule: '08:00 Registration, 11:00 Shotgun Start, 19:00 Dinner',
-};
+import useFeaturedEvent from '../hooks/useFeaturedEvent';
 
 export default function Charities() {
   const videoRef = useRef(null);
-  const charityEvent = fixtures.find((event) => event.isCharityDay) ?? fallbackEvent;
+  const charityEvent = useFeaturedEvent(true);
   const eventYear = charityEvent.date.split(' ').slice(-1)[0] ?? '2026';
   const includedItems = charityEvent.package
     ? charityEvent.package.split(',').map((item) => item.trim()).filter(Boolean)

@@ -44,7 +44,7 @@ function setCachedData(key, data, columns) {
     }
 }
 
-function parseCSV(text, customHeaders = null) {
+export function parseCSV(text, customHeaders = null) {
     if (!text || !text.trim()) return { raw: [], data: [], columns: [] };
 
     let p = '', row = [''], ret = [row], i = 0, r = 0, s = !0, l;

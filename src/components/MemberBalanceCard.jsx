@@ -1,0 +1,3 @@
+import {useEffect,useState} from 'react';
+import {api} from '../lib/api';
+export default function MemberBalanceCard(){const [balance,setBalance]=useState(null),[error,setError]=useState('');useEffect(()=>{api.get('/api/account/balance').then(setBalance).catch(e=>setError(e.message));},[]);return <section className="rounded-xl border bg-white p-5"><h2 className="text-xl font-bold">Your private balance</h2>{balance?<><p className="my-3 text-3xl font-bold">{new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP'}).format(balance.projectedBalancePence/100)}</p><p>After bookings made since the {balance.reconciledOn} reconciliation. Positive is credit; negative is the amount to pay.</p></>:<p className="mt-3">{error || 'Loading your balance…'}</p>}</section>;}
