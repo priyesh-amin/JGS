@@ -22,7 +22,7 @@ The original Sheets remain historical references. Existing hourly sync writes ar
 
 ## Technical recovery
 
-Deploy through the existing GitHub Actions / Cloudflare Pages workflow. The migration step resolves the existing production DB binding and verifies its known database name before applying the additive schema. No new hosting service or database is introduced.
+Deploy through the existing GitHub Actions / Cloudflare Pages workflow. The authenticated activation action applies a fixed, additive schema through the existing application DB binding; it accepts no SQL input. No new hosting service or database is introduced.
 
 Use Cloudflare D1 recovery for a database incident. `management_snapshots` retains the cutover snapshot; management/booking audits retain changes. The committee JSON export intentionally excludes passwords, sessions, reset tokens and provider credentials. Keep exports private. Restore requires a technical review; there is no unsafe one-click database overwrite.
 

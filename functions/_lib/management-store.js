@@ -1,3 +1,4 @@
+import { ensureManagementSchema } from './management-schema.js';
 import { importCompetitionTables } from './competition-tables.js';
 import { parseCsv } from './sheet-sync.js';
 import { AppError } from './errors.js';
@@ -18,10 +19,12 @@ export async function assertManaged(db) {
   if (!await websiteManaged(db)) throw new AppError(409, 'setup_required', 'Complete website management setup first.');
 }
 export async function managementStatus(db) {
-  return { mode: await websiteManaged(db) ? 'website' : 'legacy', snapshots: await all(db, 'SELECT id, created_at FROM management_snapshots ORDER BY created_at DESC') };
+  const mode=await websiteManaged(db)?'website':'legacy';
+  return {mode};
 }
 export async function activateManagement(context, actor) {
   const db = context.env.DB;
+  await ensureManagementSchema(db);
   if (await websiteManaged(db)) return managementStatus(db);
   const pending = await db.prepare("SELECT COUNT(*) AS count FROM integration_outbox WHERE status <> 'sent'").first();
   if (pending.count) throw new AppError(409, 'delivery_pending', 'Finish pending booking deliveries before switching.');
@@ -47,7 +50,7 @@ export async function activateManagement(context, actor) {
   const snapshot = {events,bookings,results,balances,reconciledOn:reconciled,unmatched,preparation,guests,competitionTables};
   await db.batch([
     db.prepare('INSERT INTO management_snapshots VALUES (?, ?, ?)').bind(crypto.randomUUID(),JSON.stringify(snapshot),now),
-    ...balances.map(b=>db.prepare('INSERT OR IGNORE INTO member_balances (member_id,balance_pence,reconciled_on,note,updated_at) VALUES (?,?,?,?,?)').bind(b.memberId,b.balancePence,reconciled,'Imported from existing Treasurer records',now)),
+    db.prepare("INSERT OR IGNORE INTO member_balances (member_id,balance_pence,reconciled_on,note,updated_at) SELECT json_extract(value,'$.memberId'),json_extract(value,'$.balancePence'),?,'Imported from existing Treasurer records',? FROM json_each(?)").bind(reconciled,now,JSON.stringify(balances)),
     ...competitionTables.map(t=>db.prepare('INSERT OR IGNORE INTO competition_tables (id,rows_json,updated_at) VALUES (?,?,?)').bind(t.id,JSON.stringify(t.rows),now)),
     db.prepare("UPDATE events SET source_type='website', updated_at=?").bind(now),
     db.prepare("UPDATE events SET booking_fields_json=json_set(booking_fields_json,'$.questions',json(?)) WHERE event_date>=? AND COALESCE(json_array_length(booking_fields_json,'$.questions'),0)=0").bind(JSON.stringify([{key:'breakfast',label:'Breakfast preference',type:'select',options:['Vegetarian','Standard','Not required'],required:false},{key:'social',label:'Social / meal attendance',type:'select',options:['Yes','No','Maybe'],required:false}]),now.slice(0,10)),
