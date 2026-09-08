@@ -93,6 +93,7 @@ export default function EventDetails() {
               <AttendancePanel
                 attendeeCount={event.attendeeCount}
                 attendees={event.attendees}
+                questions={event.bookingFields?.questions || []}
               />
               <PaymentPanel
                 event={event}
@@ -379,7 +380,7 @@ function formatDateTime(value, timezone) {
     timeZone: timezone || 'Europe/London',
   }).format(new Date(value));
 }
-function AttendancePanel({ attendeeCount, attendees = [] }) {
+function AttendancePanel({ attendeeCount, attendees = [], questions = [] }) {
   const members = Array.isArray(attendees) ? attendees : [];
   const count = Number(attendeeCount || 0);
 
@@ -409,7 +410,7 @@ function AttendancePanel({ attendeeCount, attendees = [] }) {
                   <p><span className="font-bold text-midnight-navy">Buggy:</span> {member.buggyRequired ? 'Required' : 'Not required'}</p>
                   <p><span className="font-bold text-midnight-navy">Dietary:</span> {member.dietaryRequirements || 'Not recorded'}</p>
                   {Object.entries(member.preferences || {}).map(([key, value]) => (
-                    <p key={key}><span className="font-bold text-midnight-navy">{preferenceLabel(key)}:</span> {String(value)}</p>
+                    <p key={key}><span className="font-bold text-midnight-navy">{questions.find(q=>q.key===key)?.label || preferenceLabel(key)}:</span> {String(value)}</p>
                   ))}
                 </div>
               </li>

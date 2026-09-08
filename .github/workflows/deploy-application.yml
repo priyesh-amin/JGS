@@ -46,9 +46,3 @@ jobs:
           gitHubToken: ${{ secrets.GH_PAT }}
           wranglerVersion: '4'
           command: pages deploy dist --project-name=jaguargolfsociety --branch=main
-
-      - name: Retire spreadsheet schedule after cutover
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: node scripts/retire-legacy-schedule.mjs
