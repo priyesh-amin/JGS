@@ -16,7 +16,8 @@
     "preview": "vite preview",
     "test": "node --test",
     "verify:api": "node scripts/verify-booking-api.mjs",
-    "check": "npm run lint && npm run test && npm run build && npm run build:functions"
+    "check": "npm run check:release-policy && npm run lint && npm run test && npm run build && npm run build:functions",
+    "check:release-policy": "node scripts/check-release-workflow.mjs"
   },
   "dependencies": {
     "jose": "^6.2.9",

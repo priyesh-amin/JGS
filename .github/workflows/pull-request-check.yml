@@ -1,10 +1,10 @@
-name: Deploy JGS Application
+name: JGS Pull Request Check
 
 on:
-  push:
+  pull_request:
     branches: [main]
     paths:
-      - '.github/workflows/deploy-application.yml'
+      - '.github/workflows/**'
       - 'functions/**'
       - 'migrations/**'
       - 'public/**'
@@ -12,19 +12,18 @@ on:
       - 'index.html'
       - 'package.json'
       - 'package-lock.json'
+      - 'scripts/check-release-workflow.mjs'
       - 'vite.config.*'
-  workflow_dispatch:
 
 permissions:
   contents: read
-  deployments: write
 
 concurrency:
-  group: jgs-production
+  group: jgs-pr-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  verify-and-deploy:
+  verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -41,12 +40,3 @@ jobs:
         run: |
           npm ci
           npm run check
-
-      - name: Deploy to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          gitHubToken: ${{ secrets.GH_PAT }}
-          wranglerVersion: '4'
-          command: pages deploy dist --project-name=jaguargolfsociety --branch=main
