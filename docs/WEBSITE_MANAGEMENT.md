@@ -31,3 +31,8 @@ Do not roll back to a pre-management application after activation: it assumes sp
 ## Remaining provider cleanup
 
 The application is independent of spreadsheet reads after activation. The legacy `jgs-fixture-sync` cron is still configured because Cloudflare returned 403 / 10000 for schedule administration. Database ownership triggers block its writes. A Cloudflare owner should remove its cron trigger under Workers & Pages → jgs-fixture-sync → Settings → Triggers. The standalone `scripts/retire-legacy-schedule.mjs` performs the same bounded operation with an appropriately authorised token; never broaden the routine Pages token merely for this one-time cleanup.
+
+
+## Release operations
+
+Routine releases run application verification and Cloudflare Pages deployment only. A separate **JGS Production Smoke** workflow checks the live homepage and /api/status after a successful release. Cloudflare D1 administration and Workers schedule administration remain one-time owner tasks and are deliberately excluded from the release gate.

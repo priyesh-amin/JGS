@@ -1,0 +1,57 @@
+name: JGS Production Smoke
+
+on:
+  workflow_run:
+    workflows: ["Deploy JGS Application"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jgs-production-smoke
+  cancel-in-progress: true
+
+jobs:
+  production-smoke:
+    if: \${{ github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check production endpoints
+        env:
+          PRODUCTION_ORIGIN: https://jaguargolfsociety.siteproductions.co.uk
+        run: |
+          set -euo pipefail
+          home_body="$(mktemp)"
+          api_body="$(mktemp)"
+          trap 'rm -f "$home_body" "$api_body"' EXIT
+
+          request() {
+            local url="$1"
+            local output="$2"
+            curl --location --silent --show-error --max-time 15 \
+              --output "$output" --write-out '%{http_code}' "$url" || printf '000'
+          }
+
+          for attempt in 1 2 3 4 5; do
+            home_status="$(request "$PRODUCTION_ORIGIN/" "$home_body")"
+            api_status="$(request "$PRODUCTION_ORIGIN/api/status" "$api_body")"
+            echo "Attempt $attempt: homepage=$home_status api_status=$api_status"
+
+            if [[ "$home_status" == "200" && "$api_status" == "200" ]] && grep -q '"management"' "$api_body"; then
+              echo "Production smoke check passed."
+              exit 0
+            fi
+
+            if [[ "$attempt" -lt 5 ]]; then
+              sleep $((attempt * 5))
+            fi
+          done
+
+          echo "Production smoke check failed after five attempts."
+          echo "Last response status: homepage=$home_status api_status=$api_status"
+          echo "API response (first 500 bytes):"
+          head -c 500 "$api_body" || true
+          exit 1

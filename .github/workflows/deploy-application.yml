@@ -7,7 +7,6 @@ on:
       - '.github/workflows/deploy-application.yml'
       - 'functions/**'
       - 'migrations/**'
-      - 'scripts/retire-legacy-schedule.mjs'
       - 'public/**'
       - 'src/**'
       - 'index.html'
@@ -20,9 +19,14 @@ permissions:
   contents: read
   deployments: write
 
+concurrency:
+  group: jgs-production
+  cancel-in-progress: true
+
 jobs:
   verify-and-deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout reviewed source
         uses: actions/checkout@v6
