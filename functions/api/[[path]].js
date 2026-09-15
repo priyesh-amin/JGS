@@ -36,6 +36,7 @@ import {
   registerMember,
 } from '../_lib/booking-store.js';
 import { memberBalance } from '../_lib/balance-store.js';
+import { setupReconciliation } from '../_lib/reconciliation/schema.js';
 import { reviewOpeningBooking, reviewBookingCancellation, financeAvailable, dashboard, financeBackup, statement, preview, stage, openAccount, resolveRow, resolveBatch, addEntry, reverseEntry, claimPayment, resolveClaim, eventChargePreview, postEventCharges } from '../_lib/reconciliation/store.js';
 import { AppError } from '../_lib/errors.js';
 import {
@@ -301,6 +302,7 @@ async function route(context) {
       if (method!=='POST') return methodNotAllowed(['GET','POST']);
       assertSameOrigin(context.request,context.env);
       await assertManaged(db);
+      if(parts[2]==='setup') return json(await setupReconciliation(db,admin));
       if (!await financeAvailable(db)) throw new AppError(409,'setup_required','Apply the reconciliation database migration first.');
       const input=await readJson(context.request,{maxBytes:2_000_000});
       if(parts[2]==='preview') return json(await preview(db,input));
