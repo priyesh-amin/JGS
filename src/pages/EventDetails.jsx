@@ -77,10 +77,11 @@ export default function EventDetails() {
               </div>
             )}
             <div className="grid gap-6 lg:grid-cols-[1.25fr_0.75fr]">
-              <EventInformation event={event} />
+              <EventInformation event={event} balance={balance} />
               <BookingPanel
                 event={event}
                 isAdmin={isAdmin}
+                bookingChargesEnabled={Boolean(balance?.ledgerAccount && balance.bookingChargesEnabled)}
                 onChanged={(nextEvent, message) => {
                   setEvent(nextEvent);
                   setNotice(message);
@@ -108,7 +109,7 @@ export default function EventDetails() {
   );
 }
 
-function EventInformation({ event }) {
+function EventInformation({ event, balance }) {
   const date = new Date(`${event.eventDate}T12:00:00Z`);
   return (
     <article className="overflow-hidden rounded-2xl border border-border-light bg-white shadow-lg">
@@ -134,7 +135,11 @@ function EventInformation({ event }) {
           <dl className="mt-4 grid gap-4 sm:grid-cols-2">
             <Info label="Meet time" value={event.meetTime || 'To be confirmed'} />
             <Info label="First tee time" value={event.teeTime || 'To be confirmed'} />
-            <Info label="Cost" value={event.cost || 'To be confirmed'} />
+            <Info label="Cost" value={event.cost === 0 ? '£0 (free)' : event.cost || 'To be confirmed'} />
+            {balance?.ledgerAccount && balance.bookingChargesEnabled && <><Info label="Payment due" value={formatDateOnly(event.paymentDueOn || event.eventDate)} />
+            <Info label="Cancellation charge policy" value={event.cancellationChargePolicy === 'release_before_cutoff'
+              ? 'Charge released if cancelled before the cancellation deadline; later cancellations need committee review.'
+              : 'Charge retained when cancelled until the committee reviews it.'} /></>}
             <Info
               label="Registration closes"
               value={event.registrationClosesAt
@@ -149,6 +154,7 @@ function EventInformation({ event }) {
             />
             <Info label="Timezone" value={event.timezone} />
           </dl>
+          {balance?.ledgerAccount&&<p className="mt-4 text-sm text-gray-600">{balance.bookingChargesEnabled?'These terms apply to new charges. Existing charges keep the fee, due date and cancellation terms recorded when charged. Free events have no charge. Cancellation review does not clear a charge, and no cash refund is sent automatically.':'Automatic booking charges need setup. Ask Chetan to confirm your event charge and payment due date.'}</p>}
         </section>
         {event.description && (
           <section>
@@ -167,7 +173,7 @@ function EventInformation({ event }) {
   );
 }
 
-function BookingPanel({ event, isAdmin, onChanged }) {
+function BookingPanel({ event, isAdmin, onChanged, bookingChargesEnabled }) {
   const active = event.booking?.status === 'registered';
   const [buggyRequired, setBuggyRequired] = useState(Boolean(event.booking?.buggyRequired));
   const [dietaryChoice, setDietaryChoice] = useState(active
@@ -194,6 +200,7 @@ function BookingPanel({ event, isAdmin, onChanged }) {
     setSubmitting(true);
     try {
       const result = await api[active ? 'patch' : 'post'](`/api/events/${encodeURIComponent(event.id)}/booking`, {
+        ...(!active ? {expectedEventUpdatedAt: event.updatedAt} : {}),
         preferences: answers,
         buggyRequired,
         dietaryRequirements: dietaryChoice,
@@ -256,7 +263,7 @@ function BookingPanel({ event, isAdmin, onChanged }) {
           showCancel ? (
             <div className="mt-5 rounded-xl border border-red-200 bg-red-50 p-4">
               <p className="font-bold text-midnight-navy">Cancel your booking?</p>
-              <p className="mt-1 text-sm text-gray-600">Your confirmed place will be released. This action is recorded.</p>
+              <p className="mt-1 text-sm text-gray-600">Your confirmed place will be released. This action is recorded. {bookingChargesEnabled&&'Any charge stays on your account for committee review unless your recorded charge terms allow automatic release before the recorded cancellation deadline. A review does not clear the charge, and no cash refund is sent automatically.'}</p>
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <button type="button" onClick={() => setShowCancel(false)} disabled={submitting} className="min-h-11 rounded-lg border border-gray-300 bg-white px-3 py-2 font-bold text-midnight-navy">Keep booking</button>
                 <button type="button" onClick={cancel} disabled={submitting} className="min-h-11 rounded-lg bg-charity-crimson px-3 py-2 font-bold text-white disabled:opacity-60">
@@ -436,6 +443,7 @@ function preferenceLabel(value) {
 }
 
 function PaymentPanel({ event, balance, error }) {
+  if (balance?.ledgerAccount) return <section className="rounded-xl border bg-white p-6"><h2 className="text-xl font-bold">Your account statement</h2><p className="my-3">{balance.bookingChargesEnabled?'New live bookings after your opening cutoff automatically record the event fee and its due date in your private statement. Free events have no charge. Updating requirements at the same price does not charge again. Rebooking reuses a retained charge; a reversed charge is replaced by a new one. Historical bookings are not backfilled.':'Automatic booking charges need setup. Ask Chetan to confirm your event charge and payment due date.'} A booking confirmation is not payment confirmation. {balance.bookingChargesEnabled&&'Cancellation reviews keep the charge until it is released; no cash refund is automatic.'}</p><a href="/members" className="font-bold underline">View charges, payments and amount due</a></section>;
   const allocation = balance?.allocations?.find(
     (item) => item.eventId === event.id,
   );

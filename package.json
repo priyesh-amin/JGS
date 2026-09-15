@@ -20,6 +20,7 @@
     "check:release-policy": "node scripts/check-release-workflow.mjs"
   },
   "dependencies": {
+    "fflate": "0.8.3",
     "jose": "^6.2.9",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
@@ -30,6 +31,7 @@
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "6.1.0",
+    "@xmldom/xmldom": "0.9.12",
     "autoprefixer": "10.5.4",
     "eslint": "10.8.1",
     "eslint-plugin-react-hooks": "7.1.1",

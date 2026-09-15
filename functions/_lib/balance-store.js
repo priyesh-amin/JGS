@@ -1,6 +1,7 @@
 import { websiteManaged } from './management-mode.js';
 import { AppError } from './errors.js';
 import { parseCsv } from './sheet-sync.js';
+import { statement } from './reconciliation/store.js';
 
 function normaliseName(value) {
   return String(value || '')
@@ -139,6 +140,10 @@ export function allocateBalance(balancePence, bookings) {
 }
 
 export async function memberBalance(context, user) {
+  const ledger=await statement(context.env.DB,user.id);
+  if (ledger.active) return {ledgerAccount:true,bookingChargesEnabled:ledger.bookingChargesEnabled,balancePence:ledger.availableCreditPence-ledger.dueNowPence-ledger.upcomingPence,
+    projectedBalancePence:ledger.availableCreditPence-ledger.dueNowPence-ledger.upcomingPence,
+    outstandingPence:ledger.dueNowPence+ledger.upcomingPence,reconciledOn:ledger.bankDataThrough,currency:'GBP',allocations:[],reconciledEventIds:[]};
   let balancePence, reconciledOn;
   if (await websiteManaged(context.env.DB)) {
     const stored = await context.env.DB.prepare('SELECT balance_pence,reconciled_on FROM member_balances WHERE member_id=?').bind(user.id).first();

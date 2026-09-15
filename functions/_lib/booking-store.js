@@ -1,5 +1,6 @@
 import { validateAnswers } from './booking-fields.js';
 import { AppError, isUniqueConstraintError } from './errors.js';
+import { financeDate, bookingFinanceError } from './reconciliation/booking-errors.js';
 import {
   assertCanCancel,
   assertCanRegister,
@@ -172,6 +173,9 @@ export async function registerMember(
 ) {
   const event = await getEvent(db, eventId);
   if (!administrator) assertCanRegister(event, now);
+  if(input?.expectedEventUpdatedAt!==undefined && input.expectedEventUpdatedAt!==event.updated_at) {
+    throw new AppError(409,'event_changed','The event details changed. Reload the event and check its fee and payment terms before booking.');
+  }
   const existing = await getBooking(db, memberId, eventId);
   if (existing?.status === 'registered') {
     throw new AppError(
@@ -188,6 +192,7 @@ export async function registerMember(
   const timestamp = now.toISOString();
   const after = {
     id,
+    financeDate: financeDate(now),
     memberId,
     eventId,
     status: 'registered',
@@ -203,6 +208,7 @@ export async function registerMember(
   const outboxKey = `booking:${id}:${nextVersion}`;
 
   const guard = `e.id = ?
+       AND e.updated_at = ?
        AND e.source_type IN ('google_sheet', 'website')
        AND (${administrator ? '1' : '0'}=1 OR (e.status IN ('published', 'open')
        AND (e.publication_at IS NULL OR e.publication_at <= ?)
@@ -231,6 +237,7 @@ export async function registerMember(
         id,
         existing.version,
         eventId,
+        event.updated_at,
         timestamp,
         timestamp,
         timestamp,
@@ -253,6 +260,7 @@ export async function registerMember(
         timestamp,
         nextVersion,
         eventId,
+        event.updated_at,
         timestamp,
         timestamp,
         timestamp,
@@ -308,6 +316,7 @@ export async function registerMember(
       );
     }
   } catch (error) {
+    if (bookingFinanceError(error)!==error) throw bookingFinanceError(error);
     if (isUniqueConstraintError(error)) {
       throw new AppError(
         409,
@@ -340,6 +349,7 @@ export async function cancelMember(
   const nextVersion = Number(existing.version) + 1;
   const after = {
     ...existing,
+    financeDate: financeDate(now),
     status: 'cancelled',
     cancelled_at: timestamp,
     updated_at: timestamp,

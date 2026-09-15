@@ -1,0 +1,5 @@
+account,transaction_id,date,amount,currency,reference
+society,example-001,2026-09-12,45.00,GBP,JGS-0042
+society,example-002,2026-09-12,80.00,GBP,JGS-0043
+society,example-003,2026-09-12,65.00,GBP,UNKNOWN PAYER
+society,example-004,2026-09-12,-130.00,GBP,VENUE
