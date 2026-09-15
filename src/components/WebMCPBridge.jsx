@@ -26,15 +26,18 @@ export default function WebMCPBridge({ onChanged }) {
     if (!context) return;
     let active = true;
     const settle = value => pending.current?.(value);
-    const confirm = details => new Promise(resolve => {
-      if (!active || pending.current) { resolve(false); return; }
+    const confirm = (details, signal) => new Promise(resolve => {
+      if (!active || pending.current || signal?.aborted) { resolve(false); return; }
+      const cancel = () => settle(false);
       const timer = setTimeout(() => settle(false), 120000);
       pending.current = value => {
         clearTimeout(timer);
+        signal?.removeEventListener('abort', cancel);
         pending.current = null;
         setRequest(null);
         resolve(value && active);
       };
+      signal?.addEventListener('abort', cancel, { once: true });
       setRequest(details);
     });
     const revoke = () => { active = false; settle(false); registration.stop(); setStatus({ state: 'unavailable' }); };

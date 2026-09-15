@@ -108,6 +108,7 @@ function safeApiError(error) {
 export function createTools({ user, api, confirm, onChanged = () => {}, isActive = () => true }) {
   if (!user || !['member', 'admin'].includes(user.role) || user.mustChangePassword) return [];
   const identity = { id: user.id, role: user.role };
+  let mutationSignal;
   const active = () => { if (!isActive()) fail('This tool session is no longer active.'); };
   const session = async () => {
     active();
@@ -119,13 +120,14 @@ export function createTools({ user, api, confirm, onChanged = () => {}, isActive
   const eventRead = async eventId => (await read(`/api/events/${encodeURIComponent(eventId)}`)).event;
   const prepRead = eventId => read(`/api/admin/manage/events/${encodeURIComponent(eventId)}`);
   const write = async (title, details, method, path, body, guard) => {
-    active();
+    const check = () => { active(); if (mutationSignal?.aborted) fail('Action cancelled. Nothing was changed.'); };
+    check();
     if (typeof confirm !== 'function') fail('Confirmation is unavailable.');
-    const accepted = await confirm({ title, details });
-    active();
+    const accepted = await confirm({ title, details }, mutationSignal);
+    check();
     if (accepted !== true) fail('Action cancelled. Nothing was changed.');
-    if (guard) { await guard(); active(); }
-    await session(); active();
+    if (guard) { await guard(); check(); }
+    await session(); check();
     await api[method](path, body); active();
     // A refresh failure must not report a successful mutation as failed/retryable.
     try { await onChanged(); } catch { /* The write succeeded. */ }
@@ -135,17 +137,18 @@ export function createTools({ user, api, confirm, onChanged = () => {}, isActive
   const definitions = [];
   const add = (name, description, schema, mutates, run) => definitions.push({
     name: `jgs_${name}`, description, inputSchema: schema, annotations: { readOnlyHint: !mutates, untrustedContentHint: true, consequentialHint: mutates },
-    async execute(input) {
+    async execute(input, { signal } = {}) {
       let locked = false;
       try {
+        if (signal?.aborted) fail('Action cancelled. Nothing was changed.');
         validate(schema, input);
         const clean = JSON.parse(JSON.stringify(input));
         active();
-        if (mutates) { if (mutationBusy) fail('Another change is awaiting confirmation or saving.'); mutationBusy = true; locked = true; }
+        if (mutates) { if (mutationBusy) fail('Another change is awaiting confirmation or saving.'); mutationBusy = true; locked = true; mutationSignal = signal; }
         const result = await run(clean); active(); return output(result);
       } catch (error) {
         return output({ error: error instanceof SafeError ? error.message : safeApiError(error) || (error?.status === 409 ? 'The record changed or this action is unavailable. Refresh before retrying.' : error?.status === 401 || error?.status === 403 ? 'Sign-in or access verification failed.' : 'The action could not be completed. Check the website before retrying.') }, true);
-      } finally { if (locked) mutationBusy = false; }
+      } finally { if (locked) { mutationBusy = false; mutationSignal = undefined; } }
     },
   });
   add('list_events', 'List visible events and your booking status.', object(), false, async () => ({ events: (await read('/api/events')).events.map(safeEvent) }));

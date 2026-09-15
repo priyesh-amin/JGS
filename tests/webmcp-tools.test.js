@@ -235,3 +235,12 @@ test('closed cancellation is rejected before confirmation', async () => {
   assert.equal(f.confirmations.length, 0);
   assert.equal(f.writes().length, 0);
 });
+
+
+test('browser cancellation while reviewing cannot commit a change', async () => {
+  const controller = new AbortController();
+  const f = fixture('member', { confirm: () => { controller.abort(); return true; } });
+  const result = await f.tools.find(t => t.name === 'jgs_book_event').execute(booking, { signal: controller.signal });
+  assert.equal(result.isError, true);
+  assert.equal(f.writes().length, 0);
+});
