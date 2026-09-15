@@ -107,6 +107,16 @@ export async function updateMember(
   if (!existing) throw new AppError(404, 'member_not_found', 'Member not found.');
   assertGenericAccountMutationAllowed(existing, actor, recoveryEmailValue);
 
+  const guarded = input.expectedUpdatedAt !== undefined;
+  if (guarded && (typeof input.expectedUpdatedAt !== 'string' || input.expectedUpdatedAt !== existing.updated_at)) {
+    throw new AppError(409, 'member_changed', 'Member details changed. Refresh before saving.');
+  }
+  if (guarded && (existing.role !== 'member' || Object.keys(input).some(key => !['displayName', 'email', 'expectedUpdatedAt'].includes(key)))) {
+    throw new AppError(400, 'invalid_member_update', 'Only ordinary member contact details can be changed here.');
+  }
+  const auditId = guarded ? crypto.randomUUID() : null;
+  const guardSql = guarded ? ' AND updated_at = ?' : '';
+  const guardArgs = guarded ? [input.expectedUpdatedAt] : [];
   const nextRole = input.role === undefined
     ? existing.role
     : input.role === 'admin' ? 'admin' : 'member';
@@ -131,14 +141,14 @@ export async function updateMember(
   const financeUrl = input.financeUrl === undefined
     ? existing.finance_url
     : validateFinanceUrl(input.financeUrl);
-  const timestamp = now.toISOString();
+  const timestamp = guarded ? new Date(Math.max(now.getTime(), Date.parse(existing.updated_at) + 1)).toISOString() : now.toISOString();
 
   const update = emailChanged
     ? db.prepare(
       `UPDATE members
        SET email = ?, display_name = ?, role = ?, status = ?, finance_url = ?,
            google_subject = NULL, google_linked_at = NULL, updated_at = ?
-       WHERE id = ? AND username IS NULL`,
+       WHERE id = ? AND username IS NULL${guardSql}`,
     ).bind(
       email,
       displayName,
@@ -147,11 +157,12 @@ export async function updateMember(
       financeUrl,
       timestamp,
       memberId,
+      ...guardArgs,
     )
     : db.prepare(
       `UPDATE members
        SET display_name = ?, role = ?, status = ?, finance_url = ?, updated_at = ?
-       WHERE id = ? AND username IS NULL`,
+       WHERE id = ? AND username IS NULL${guardSql}`,
     ).bind(
       displayName,
       nextRole,
@@ -159,22 +170,29 @@ export async function updateMember(
       financeUrl,
       timestamp,
       memberId,
+      ...guardArgs,
     );
 
   try {
-    await db.batch([
+    const results = await db.batch([
       update,
+      ...(guarded ? [db.prepare('INSERT INTO management_audit SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE changes()=1').bind(
+        auditId, actor.id, 'member', memberId, 'updated',
+        JSON.stringify({ displayName: existing.display_name, email: existing.email }),
+        JSON.stringify({ displayName, email }), timestamp,
+      )] : []),
       ...(emailChanged || nextStatus === 'disabled'
-        ? [db.prepare('DELETE FROM sessions WHERE member_id = ?').bind(memberId)]
+        ? [db.prepare(`DELETE FROM sessions WHERE member_id = ?${guarded ? ' AND EXISTS (SELECT 1 FROM management_audit WHERE id=?)' : ''}`).bind(memberId, ...(guarded ? [auditId] : []))]
         : []),
       ...(emailChanged
         ? [
           db.prepare(
-            'DELETE FROM password_reset_tokens WHERE member_id = ?',
-          ).bind(memberId),
+            `DELETE FROM password_reset_tokens WHERE member_id = ?${guarded ? ' AND EXISTS (SELECT 1 FROM management_audit WHERE id=?)' : ''}`,
+          ).bind(memberId, ...(guarded ? [auditId] : [])),
         ]
         : []),
     ]);
+    if (guarded && !results[0]?.meta?.changes) throw new AppError(409, 'member_changed', 'Member details changed. Refresh before saving.');
   } catch (error) {
     if (String(error?.message || error).includes('UNIQUE constraint failed')) {
       throw new AppError(
