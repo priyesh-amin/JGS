@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import ScrollToTop from './components/ScrollToTop'; // We'll create a simple scroll to top component
 import Home from './pages/Home';
@@ -20,12 +20,20 @@ import AccountSecurity from './pages/AccountSecurity';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 
+import WebMCPBridge from './components/WebMCPBridge';
+import BrowserAssistant from './pages/BrowserAssistant';
+
 function App() {
+  const [assistantChanged, setAssistantChanged] = useState(false);
+  const refreshViews = useCallback(() => setAssistantChanged(true), []);
   return (
     <Router>
       <AuthProvider>
         <ScrollToTop />
+        <WebMCPBridge onChanged={refreshViews} />
+        {assistantChanged && <aside role="status" className="border-b bg-green-50 p-4 text-center">Browser assistant change saved. Reload to see current records. Reloading discards unsaved form edits. <button type="button" className="ml-3 underline" onClick={() => window.location.reload()}>Reload records</button><button type="button" className="ml-3 underline" onClick={() => setAssistantChanged(false)}>Dismiss</button></aside>}
         <Routes>
+          <Route path="/browser-assistant" element={<ProtectedRoute><BrowserAssistant /></ProtectedRoute>} />
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
