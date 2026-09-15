@@ -36,6 +36,8 @@ import {
   registerMember,
 } from '../_lib/booking-store.js';
 import { memberBalance } from '../_lib/balance-store.js';
+import { setupReconciliation } from '../_lib/reconciliation/schema.js';
+import { reviewOpeningBooking, reviewBookingCancellation, financeAvailable, dashboard, financeBackup, statement, preview, stage, openAccount, resolveRow, resolveBatch, addEntry, reverseEntry, claimPayment, resolveClaim, eventChargePreview, postEventCharges } from '../_lib/reconciliation/store.js';
 import { AppError } from '../_lib/errors.js';
 import {
   assertSameOrigin,
@@ -279,6 +281,13 @@ async function route(context) {
     return json(await getCompetitionTable(context.env.DB,parts[1]));
   }
 
+  if (parts[0] === 'account' && parts[1] === 'statement') {
+    const user=await requireUser(context);
+    if (method==='GET') return json(await statement(context.env.DB,user.id));
+    if (method!=='POST' || parts[2]!=='claims') return methodNotAllowed(['GET']);
+    assertSameOrigin(context.request,context.env);
+    return json(await claimPayment(context.env.DB,user,await readJson(context.request)));
+  }
   if (parts[0] === 'account' && parts[1] === 'balance') {
     if (method !== 'GET') return methodNotAllowed(['GET']);
     return json(await memberBalance(context, await requireUser(context)));
@@ -286,6 +295,30 @@ async function route(context) {
 
   if (parts[0] === 'admin') {
     const admin = await requireAdmin(context);
+
+    if (parts[1]==='reconciliation') {
+      const db=context.env.DB;
+      if (method==='GET') return json(parts[2]==='backup'?await financeBackup(db):await dashboard(db));
+      if (method!=='POST') return methodNotAllowed(['GET','POST']);
+      assertSameOrigin(context.request,context.env);
+      await assertManaged(db);
+      if(parts[2]==='setup') return json(await setupReconciliation(db,admin));
+      if (!await financeAvailable(db)) throw new AppError(409,'setup_required','Apply the reconciliation database migration first.');
+      const input=await readJson(context.request,{maxBytes:2_000_000});
+      if(parts[2]==='preview') return json(await preview(db,input));
+      if(parts[2]==='stage') return json(await stage(db,admin,input));
+      if(parts[2]==='open') return json(await openAccount(db,admin,input));
+      if(parts[2]==='resolve') return json(await resolveRow(db,admin,input.id,input));
+      if(parts[2]==='batch') return json(await resolveBatch(db,admin,input));
+      if(parts[2]==='entry') return json(await addEntry(db,admin,input));
+      if(parts[2]==='reverse') return json(await reverseEntry(db,admin,input));
+      if(parts[2]==='claim') return json(await resolveClaim(db,admin,input));
+      if(parts[2]==='booking-review') return json(await reviewBookingCancellation(db,admin,input));
+      if(parts[2]==='opening-booking') return json(await reviewOpeningBooking(db,admin,input));
+      if(parts[2]==='event-preview') return json(await eventChargePreview(db,input));
+      if(parts[2]==='event-charges') return json(await postEventCharges(db,admin,input));
+      throw new AppError(404,'not_found','Not found.');
+    }
 
     if (parts[1] === 'manage') {
       const db=context.env.DB, kind=parts[2], id=parts[3];

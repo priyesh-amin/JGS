@@ -119,6 +119,9 @@ export function publicEvent(event, booking, now = new Date()) {
     meetTime: event.meet_time,
     teeTime: event.tee_time,
     cost: event.cost,
+    updatedAt: event.updated_at,
+    paymentDueOn: event.payment_due_on || event.event_date,
+    cancellationChargePolicy: event.cancellation_charge_policy || 'review',
     description: event.description,
     joiningInformation: event.joining_information,
     registrationOpensAt: event.registration_opens_at,
@@ -150,4 +153,3 @@ function safeJson(value, fallback) {
     return fallback;
   }
 }
-

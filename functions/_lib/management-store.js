@@ -5,6 +5,7 @@ import { AppError } from './errors.js';
 import { validateFields } from './booking-fields.js';
 import { websiteManaged } from './management-mode.js';
 import { findMemberBalance, findReconciledOn, parseBalancePence } from './balance-store.js';
+import { financeAvailable } from './reconciliation/store.js';
 
 const bad = message => { throw new AppError(400, 'invalid_details', message); };
 const conflict = () => { throw new AppError(409, 'changed', 'Someone changed this record. Refresh before saving again.'); };
@@ -75,14 +76,40 @@ export async function saveEvent(db, actor, id, input) {
   const dates = ['publication_at','registration_opens_at','registration_closes_at','cancellation_closes_at'].map(k=>stamp(value[k]));
   if (dates[1] && dates[2] && dates[1] >= dates[2]) bad('Registration must open before it closes.');
   if (['published','open'].includes(status) && (!venue || dates.slice(1).some(v=>!v))) bad('Set venue and all booking deadlines before publishing.');
-  const cost = value.cost || '';
-  if (cost && (parseBalancePence(cost) === null || parseBalancePence(cost)<0)) bad('Enter a valid non-negative cost in pounds.');
+  const rawCost = String(value.cost ?? '').trim();
+  const costPence = rawCost ? parseBalancePence(rawCost) : null;
+  if (rawCost && (costPence === null || !Number.isSafeInteger(costPence) || costPence<0 || costPence>100000000)) bad('Enter a valid cost between £0 and £1,000,000.');
+  const cost = costPence === null ? '' : (costPence/100).toFixed(2);
+  value.cost = cost;
   const fields = validateFields(value.bookingFields ?? JSON.parse(value.booking_fields_json || '{}'));
+  // Optional migration 0007 fields must not prevent legacy event editing.
+  const columns = new Set((await all(db,'PRAGMA table_info(events)')).map(column=>column.name));
+  if ((!columns.has('payment_due_on') && String(value.payment_due_on ?? '').trim()) ||
+      (!columns.has('cancellation_charge_policy') && value.cancellation_charge_policy != null && value.cancellation_charge_policy !== 'review')) {
+    bad('Automatic booking charges are not enabled yet; payment settings were not saved.');
+  }
+  const config = {};
+  if (columns.has('payment_due_on')) {
+    const due = value.payment_due_on == null ? '' : text(value.payment_due_on,10);
+    config.payment_due_on = due ? date(due) : null;
+  }
+  if (columns.has('cancellation_charge_policy')) {
+    const policy = value.cancellation_charge_policy ?? 'review';
+    if (!['review','release_before_cutoff'].includes(policy)) bad('Choose a valid cancellation charge policy.');
+    config.cancellation_charge_policy = policy;
+  }
+  delete value.payment_due_on;
+  delete value.cancellation_charge_policy;
+  Object.assign(value,config);
   id ||= crypto.randomUUID();
   const now = new Date(Math.max(Date.now(), (Date.parse(before?.updated_at) || 0)+1)).toISOString();
   const args = [title,venue,date(value.event_date),text(value.meet_time || '',50),text(value.tee_time || '',50),cost,text(value.description || '',5000),text(value.joining_information || '',5000),...dates,status,JSON.stringify(fields),now];
-  const write = before ? db.prepare(`UPDATE events SET title=?,venue=?,event_date=?,meet_time=?,tee_time=?,cost=?,description=?,joining_information=?,publication_at=?,registration_opens_at=?,registration_closes_at=?,cancellation_closes_at=?,status=?,booking_fields_json=?,updated_at=? WHERE id=? AND updated_at=?`).bind(...args,id,before.updated_at)
-    : db.prepare(`INSERT INTO events (title,venue,event_date,meet_time,tee_time,cost,description,joining_information,publication_at,registration_opens_at,registration_closes_at,cancellation_closes_at,status,booking_fields_json,updated_at,id,source_type,source_key,created_at,timezone) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'website', ?,?,'Europe/London')`).bind(...args,id,id,now);
+  const configKeys = Object.keys(config);
+  const configColumns = configKeys.map(key=>`,${key}`).join('');
+  const configUpdates = configKeys.map(key=>`,${key}=?`).join('');
+  const configPlaceholders = configKeys.map(()=>',?').join('');
+  const write = before ? db.prepare(`UPDATE events SET title=?,venue=?,event_date=?,meet_time=?,tee_time=?,cost=?,description=?,joining_information=?,publication_at=?,registration_opens_at=?,registration_closes_at=?,cancellation_closes_at=?,status=?,booking_fields_json=?,updated_at=?${configUpdates} WHERE id=? AND updated_at=?`).bind(...args,...Object.values(config),id,before.updated_at)
+    : db.prepare(`INSERT INTO events (title,venue,event_date,meet_time,tee_time,cost,description,joining_information,publication_at,registration_opens_at,registration_closes_at,cancellation_closes_at,status,booking_fields_json,updated_at${configColumns},id,source_type,source_key,created_at,timezone) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?${configPlaceholders},?, 'website', ?,?,'Europe/London')`).bind(...args,...Object.values(config),id,id,now);
   const result = await db.batch([write,audit(db,actor,'event',id,before,{...value,bookingFields:fields})]);
   if (!result[0].meta.changes) conflict();
   return db.prepare('SELECT * FROM events WHERE id=?').bind(id).first();
@@ -127,6 +154,7 @@ export async function balances(db,excludedEmail='') {
 export async function saveBalance(db,actor,id,input,excludedEmail='') {
   if(!await db.prepare("SELECT id FROM members WHERE id=? AND role='member' AND email<>? COLLATE NOCASE").bind(id,excludedEmail).first()) throw new AppError(404,'not_found','Member not found.');
   await assertManaged(db);
+  if(await financeAvailable(db) && await db.prepare('SELECT member_id FROM finance_accounts WHERE member_id=?').bind(id).first()) bad('This member uses Reconciliation. Record a charge or credit adjustment there instead of replacing the balance.');
   const before = await db.prepare('SELECT * FROM member_balances WHERE member_id=?').bind(id).first();
   if (Number(before?.version || 0) !== Number(input.version || 0)) conflict();
   const pence = parseBalancePence(input.amount);

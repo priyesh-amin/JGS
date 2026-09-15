@@ -1,4 +1,5 @@
 import CompetitionTableEditor from '../components/CompetitionTableEditor';
+import Reconciliation from '../components/Reconciliation';
 import EventWorkspace from '../components/EventWorkspace';
 import ManagementRecords, { ManagementHelp } from '../components/ManagementRecords';
 import { useCallback, useEffect, useId, useState } from 'react';
@@ -71,7 +72,7 @@ export default function Admin() {
         </header>
 
         <nav className="mt-6 grid grid-cols-2 gap-2 rounded-xl border border-border-light bg-white p-2 shadow-sm sm:grid-cols-5" aria-label="Administrator sections">
-          {(management?.mode==='website' ? [['events','Events','event'],['members','Members','groups'],['balances','Balances','account_balance_wallet'],['results','Results','trophy'],['tables','Match play','sports_golf'],['help','Help','help'],['history','History','history']] : TABS).map(([id, label, icon]) => (
+          {(management?.mode==='website' ? [['events','Events','event'],['members','Members','groups'],['reconciliation','Reconciliation','account_balance'],['balances','Legacy balances','account_balance_wallet'],['results','Results','trophy'],['tables','Match play','sports_golf'],['help','Help','help'],['history','History','history']] : TABS).map(([id, label, icon]) => (
             <button
               key={id}
               type="button"
@@ -106,6 +107,7 @@ export default function Admin() {
             {management?.mode==='legacy' && <div className="mb-6 rounded-xl border border-jaguar-green bg-white p-5"><h2 className="text-xl font-bold">Switch to website management</h2><p className="my-3">Preserve current events, bookings and results, import matched balances, and stop spreadsheet updates. Old sheets remain historical copies.</p><button className="manage-button" disabled={activating} onClick={async()=>{setActivating(true);try {const r=await api.post('/api/admin/manage/activate');setActiveTab('events');await complete(`Website management is active. ${r.importedBalances} balances imported. ${r.unmatched?.length || 0} balances need review in Balances.`);}catch(e){setError(e.message);}finally{setActivating(false);}}}>{activating?'Activating…':'Activate website management'}</button></div>}
             {activeTab === 'events' && (management?.mode==='website' ? <EventWorkspace events={events} members={members} reload={async()=>setEvents((await api.get('/api/admin/events')).events)}/> : <EventsAdmin events={events} onComplete={complete} />)}
             {['balances','results','history'].includes(activeTab) && <ManagementRecords key={activeTab} kind={activeTab}/>}
+            {activeTab==='reconciliation' && <Reconciliation events={events}/>}
             {activeTab==='tables' && <CompetitionTableEditor/>}
             {activeTab==='help' && <ManagementHelp/>}
             {activeTab === 'attendees' && <AttendeesAdmin events={events} onComplete={complete} />}

@@ -1,4 +1,5 @@
 import { validateAnswers } from './booking-fields.js';
+import { financeDate, bookingFinanceError } from './reconciliation/booking-errors.js';
 import { AppError } from './errors.js';
 import { hashPassword } from './crypto.js';
 import { normaliseEmail, requireString } from './http.js';
@@ -415,7 +416,7 @@ export async function correctBooking(
   now = new Date(),
 ) {
   const existing = await db.prepare(
-    `SELECT b.*, m.email, m.display_name, e.title AS event_title, e.booking_fields_json
+    `SELECT b.*, m.email, m.display_name, e.title AS event_title, e.booking_fields_json,e.updated_at AS event_updated_at
      FROM bookings b
      JOIN members m ON m.id = b.member_id
      JOIN events e ON e.id = b.event_id
@@ -453,6 +454,7 @@ export async function correctBooking(
     : null;
   const after = {
     id: existing.id,
+    financeDate: financeDate(now),
     memberId: existing.member_id,
     eventId: existing.event_id,
     status,
@@ -484,7 +486,8 @@ export async function correctBooking(
         `UPDATE bookings
          SET status = ?, buggy_required = ?, dietary_requirements = ?,
              preferences_json = ?, cancelled_at = ?, updated_at = ?, version = ?
-         WHERE id = ? AND version = ?`,
+         WHERE id = ? AND version = ?
+           AND EXISTS(SELECT 1 FROM events e WHERE e.id=? AND e.updated_at=?)`,
       ).bind(
         status,
         buggyRequired ? 1 : 0,
@@ -495,6 +498,8 @@ export async function correctBooking(
         nextVersion,
         existing.id,
         existing.version,
+        existing.event_id,
+        existing.event_updated_at,
       ),
       db.prepare("SELECT json('Record changed') WHERE changes()=0"),
       db.prepare(
@@ -527,14 +532,14 @@ export async function correctBooking(
       ...preparationWrites,
     ]);
   } catch (error) {
-    if (String(error?.message || error).includes('UNIQUE constraint failed')) {
+    if (/UNIQUE constraint failed|malformed JSON/.test(String(error?.message || error))) {
       throw new AppError(
         409,
         'booking_changed',
         'This booking changed while you were editing it. Refresh and try again.',
       );
     }
-    throw error;
+    throw bookingFinanceError(error);
   }
   return after;
 }
