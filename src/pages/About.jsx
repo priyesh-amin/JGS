@@ -214,8 +214,11 @@ export default function About() {
                             {/* Secretary */}
                             <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center text-center group hover:border-trophy-gold transition-colors duration-300">
                                 <div className="size-24 rounded-full bg-gray-100 mb-6 overflow-hidden relative">
-                                    <div className="absolute inset-0 bg-midnight-navy/10 group-hover:bg-transparent transition-colors"></div>
-                                    <span className="material-symbols-outlined text-4xl text-gray-400 absolute inset-0 flex items-center justify-center">person</span>
+                                    <img
+                                        src="/images/bobby-verma.jpg"
+                                        alt="Bobby Verma"
+                                        className="h-full w-full object-cover object-center"
+                                    />
                                 </div>
                                 <h3 className="text-xl font-bold text-midnight-navy">Bobby Verma</h3>
                                 <p className="text-trophy-gold font-bold text-sm uppercase tracking-wider mt-1">Secretary</p>

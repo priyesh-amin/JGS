@@ -19,6 +19,8 @@ const committeeMembers = [
     {
         name: 'Bobby Verma',
         role: 'Secretary',
+        image: '/images/bobby-verma.jpg',
+        imagePosition: 'center',
     },
     {
         name: 'Dhiren Patel',
@@ -47,6 +49,7 @@ export default function Committee() {
                                         src={member.image}
                                         alt={member.name}
                                         className="h-full w-full object-cover object-top"
+                                        style={{ objectPosition: member.imagePosition }}
                                     />
                                 ) : (
                                     <>
