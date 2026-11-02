@@ -3,11 +3,22 @@ import MainLayout from '../layouts/MainLayout';
 import DataTable from '../components/DataTable';
 import HandicapTable from '../components/HandicapTable';
 import useCompetitionTable from '../hooks/useCompetitionTable';
+import useGoogleSheet from '../hooks/useGoogleSheet';
 import MemberBalanceCard from '../components/MemberBalanceCard';
 import { useAuth } from '../contexts/useAuth';
 
 // --- Sheet Configuration ---
 const SHEETS = [
+    {
+        id: 'poy',
+        label: '2026 Player of the Year',
+        icon: 'leaderboard',
+        spreadsheetId: '1oHtumEDmIaUFUJgWdWSQpwh_dsdzP5WkNe_qeJEP_9g',
+        headerColor: 'bg-jaguar-green',
+        headerTextColor: 'text-white',
+        accentBorder: 'border-trophy-gold',
+        editUrl: 'https://docs.google.com/spreadsheets/d/1oHtumEDmIaUFUJgWdWSQpwh_dsdzP5WkNe_qeJEP_9g/edit',
+    },
     {
         id: 'handicap',
         label: 'Handicap Index',
@@ -56,6 +67,22 @@ const SHEETS = [
         editUrl: 'https://docs.google.com/spreadsheets/d/1fhGDgdQ099mGIwpFqEpk2jdjuxeerNTWoHgl7-6gXt0/edit',
     },
 ];
+
+function PlayerOfYearTab({ sheet, onLoadingStateChange }) {
+    const { data, columns, loading, error, refetch } = useGoogleSheet(sheet.spreadsheetId, '0');
+    const { isAdmin } = useAuth();
+
+    useEffect(() => { onLoadingStateChange?.(sheet.id, loading); }, [loading, onLoadingStateChange, sheet.id]);
+
+    if (loading) return <p role="status" className="p-8 text-center">Loading Player of the Year standings…</p>;
+    if (error) return <div role="alert" className="bg-white rounded-xl p-8 text-center"><p>Unable to load the Player of the Year standings. Please try again.</p><button className="mt-4 rounded bg-jaguar-green px-4 py-2 text-white" onClick={refetch}>Try again</button></div>;
+
+    return <div className="space-y-4">
+        {isAdmin && <div className="flex justify-end"><a href={sheet.editUrl} target="_blank" rel="noopener noreferrer" className="rounded bg-jaguar-green px-4 py-2 text-sm font-bold text-white">Edit POY spreadsheet</a></div>}
+        <p className="text-sm text-gray-600">Standings and scores come from the committee’s 2026 POY spreadsheet.</p>
+        <DataTable data={data} columns={columns} title={sheet.label} icon={sheet.icon} headerColor={sheet.headerColor} headerTextColor={sheet.headerTextColor} accentBorder={sheet.accentBorder} />
+    </div>;
+}
 
 // --- Individual Tab Content ---
 function SheetTab({ sheet, onLoadingStateChange }) {
@@ -233,6 +260,7 @@ export default function MembersPortal() {
                                     <span className="hidden sm:inline">{sheet.label}</span>
                                     {/* Mobile: shorter labels */}
                                     <span className="sm:hidden">
+                                        {sheet.id === 'poy' && 'POY'}
                                         {sheet.id === 'handicap' && 'HCP'}
                                         {sheet.id === 'singles' && 'Singles'}
                                         {sheet.id === 'doubles' && 'Doubles'}
@@ -256,7 +284,9 @@ export default function MembersPortal() {
 
                 {/* Active Tab Content */}
                 <div className="min-h-[400px]" aria-busy={isRendering}>
-                    <SheetTab key={activeSheet.id} sheet={activeSheet} onLoadingStateChange={handleLoadingStateChange} />
+                    {activeSheet.id === 'poy'
+                        ? <PlayerOfYearTab sheet={activeSheet} onLoadingStateChange={handleLoadingStateChange} />
+                        : <SheetTab key={activeSheet.id} sheet={activeSheet} onLoadingStateChange={handleLoadingStateChange} />}
                 </div>
 
                 {/* Footer Note */}
